@@ -1,4 +1,5 @@
 import { supabase } from './src/supabase.js'
+import { parseDealText as _parseDealText } from './src/parser.js'
 
 /* ============================================================
    Deal Flow Hub — single-file React app
@@ -1012,63 +1013,8 @@ function DashPage(){
 
 // ── DealForm ──────────────────────────────────────────────────
 // ── Deal-text parser: Markdown table or "Field: Value" plaintext ──
-function parseDealText(raw) {
-  const out = {};
-  if (!raw) return out;
-  const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const clean = s =>
-    s.replace(/\*\*/g, '')
-     .replace(/^\*\((.+?)\)\*$/, '$1')
-     .replace(/^\*(.+?)\*$/, '$1')
-     .trim();
-  const matchCat = val => {
-    const v = norm(val);
-    for (const c of CATS) {
-      if (norm(c.label) === v || c.id.replace(/-/g, '') === v) return c.id;
-    }
-    for (const c of CATS) {
-      const cl = norm(c.label);
-      if (cl.includes(v) || (v.length >= 4 && v.includes(cl))) return c.id;
-    }
-    return null;
-  };
-  for (const line of raw.split('\n')) {
-    let field = '', value = '';
-    const tbl = line.match(/^\s*\|([^|]+)\|([^|]+)\|/);
-    if (tbl) {
-      field = clean(tbl[1]);
-      value = clean(tbl[2]);
-    } else {
-      const plain = line.match(/^\s*\*{0,2}([A-Za-z][\w &]+?)\*{0,2}\s*:\s*(.+)/);
-      if (plain) { field = clean(plain[1]); value = clean(plain[2]); }
-    }
-    if (!field || !value) continue;
-    if (/^[-:|]+$/.test(value) || /^[-:|]+$/.test(field)) continue;
-    const key = norm(field);
-    if (key === 'field' || key === 'suggestedentry') continue;
-    const isNone = /^(\(none\)|none|n\/a|-)$/i.test(value);
-    switch (key) {
-      case 'title': out.title = value; break;
-      case 'dealtype': { const dt = value.toUpperCase(); if (['SALE','PROMO','BOTH','STACKABLE'].includes(dt)) out.dealType = dt; break; }
-      case 'description': out.description = value; break;
-      case 'productimageurl': case 'imageurl': out.imageUrl = value; break;
-      case 'producturl': case 'link': out.link = value; break;
-      case 'promocode': case 'code': if (!isNone) out.code = value; break;
-      case 'category': case 'cat': { const cat = matchCat(value); if (cat) out.cat = cat; break; }
-      case 'expires': {
-        if (!isNone && !/pick/i.test(value)) { const d = new Date(value); if (!isNaN(d)) out.expires = d.toISOString().slice(0, 10); }
-        break;
-      }
-      case 'featured': {
-        if (!isNone && !/optional/i.test(value)) out.featured = /^(true|yes|1|featured)$/i.test(value);
-        break;
-      }
-      case 'status': { const st = value.toUpperCase(); if (['ACTIVE','INACTIVE'].includes(st)) out.status = st; break; }
-      default: break;
-    }
-  }
-  return out;
-}
+// Thin wrapper so the parser can reference the app's CATS for category matching.
+const parseDealText = (raw) => _parseDealText(raw, CATS);
 
 function DealForm({initial,onSave,onCancel}){
   const toast=useToast();
@@ -1207,6 +1153,92 @@ Deal Type: SALE"
   );
 }
 
+const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the parser independently.
+// Usage:
+//   import { parseDealText } from './src/parser.js';
+//   const deal = parseDealText(rawText, CATS);
+
+// ── Accepted input formats ────────────────────────────────────
+// 1) Markdown table:
+//    | Field          | Suggested Entry                  |
+//    | Title          | My Deal Title                    |
+//    | Deal Type      | SALE                             |
+//    | Description    | Short description here           |
+//    | Image URL      | https://example.com/img.jpg      |
+//    | Product URL    | https://example.com/product      |
+//    | Promo Code     | SAVE10                           |
+//    | Category       | Electronics                      |
+//    | Expires        | 2025-12-31                       |
+//    | Featured       | true                             |
+//    | Status         | ACTIVE                           |
+//
+// 2) Plaintext "Field: Value":
+//    Title: My Deal Title
+//    Deal Type: SALE
+//    image: https://example.com/img.jpg
+//    url: https://example.com/product
+//    promo: SAVE10
+//    cat: electronics
+//    Expires: 2025-12-31
+//    Featured: yes
+//    Status: ACTIVE
+//
+// ── Field-label aliases ───────────────────────────────────────
+//   All field names are case-insensitive (punctuation is stripped).
+//   imageUrl ← "Product Image URL" | "imageUrl" | "image"
+//   link     ← "Product URL"       | "link"     | "url"
+//   code     ← "Promo Code"        | "code"     | "promo"
+//   cat      ← "Category"          | "cat"
+//
+// ── Return value ─────────────────────────────────────────────
+//   Normalized deal object, e.g.:
+//   {
+//     title: "My Deal Title",
+//     dealType: "SALE",
+//     description: "Short description here",
+//     imageUrl: "https://example.com/img.jpg",
+//     link: "https://example.com/product",
+//     code: "SAVE10",
+//     cat: "electronics",
+//     expires: "2025-12-31",
+//     featured: true,
+//     status: "ACTIVE"
+//   }
+//   Returns {} (empty object) if no fields can be parsed.`;
+
+// ── ParserReference ───────────────────────────────────────────
+function ParserReference(){
+  const toast=useToast();
+  const [copied,setCopied]=useState(false);
+  const copy=()=>{
+    navigator.clipboard.writeText(PARSER_SNIPPET).then(()=>{
+      setCopied(true); toast?.("Snippet copied to clipboard","ok");
+      setTimeout(()=>setCopied(false),2000);
+    }).catch(()=>toast?.("Copy failed — select and copy manually","err"));
+  };
+  return(
+    <div className="card" style={{maxWidth:860}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+        <h3 style={{flex:1,fontSize:17}}>⚡ Deal Info Parser — <code style={{fontSize:14,color:"var(--p)"}}>src/parser.js</code></h3>
+        <button className="btn btn-o" style={{fontSize:13,padding:"6px 14px"}} onClick={copy}>
+          <I n="copy" s={13}/> {copied?"Copied!":"Copy Snippet"}
+        </button>
+      </div>
+      <p style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>
+        Paste deal info as a Markdown table or plaintext <code>Field: Value</code> list into
+        the autofill box in the Add / Edit Deal form to auto-populate all fields.
+        Copy the snippet below to test the parser locally before deployment.
+      </p>
+      <pre style={{
+        background:"var(--bg)",border:"1.5px solid var(--bdr)",borderRadius:10,
+        padding:"16px 18px",fontSize:12,lineHeight:1.7,overflowX:"auto",
+        color:"var(--txt)",fontFamily:"'Fira Code','Cascadia Code',monospace",
+        whiteSpace:"pre",maxHeight:500,
+      }}>{PARSER_SNIPPET}</pre>
+    </div>
+  );
+}
+
 // ── AdminDash ─────────────────────────────────────────────────
 function AdminDash(){
   const toast=useToast();
@@ -1276,10 +1308,15 @@ function AdminDash(){
           <button className={`btn ${adminSection==="methods"?"btn-p":"btn-d"}`} onClick={()=>setAdminSection("methods")}>
             💡 Save &amp; Earn Methods
           </button>
+          <button className={`btn ${adminSection==="parser"?"btn-p":"btn-d"}`} onClick={()=>setAdminSection("parser")}>
+            ⚡ Parser Reference
+          </button>
         </div>
 
         {adminSection==="methods" ? (
           <MethodsAdmin methods={methods} refresh={refreshMethods} toast={toast}/>
+        ) : adminSection==="parser" ? (
+          <ParserReference/>
         ) : (
           <>
             {/* Issue 13 fixed: renamed map variable from `s` to `stat` to avoid shadowing DealForm's `s` setter */}
