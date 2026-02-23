@@ -1011,6 +1011,65 @@ function DashPage(){
 }
 
 // ── DealForm ──────────────────────────────────────────────────
+// ── Deal-text parser: Markdown table or "Field: Value" plaintext ──
+function parseDealText(raw) {
+  const out = {};
+  if (!raw) return out;
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const clean = s =>
+    s.replace(/\*\*/g, '')
+     .replace(/^\*\((.+?)\)\*$/, '$1')
+     .replace(/^\*(.+?)\*$/, '$1')
+     .trim();
+  const matchCat = val => {
+    const v = norm(val);
+    for (const c of CATS) {
+      if (norm(c.label) === v || c.id.replace(/-/g, '') === v) return c.id;
+    }
+    for (const c of CATS) {
+      const cl = norm(c.label);
+      if (cl.includes(v) || (v.length >= 4 && v.includes(cl))) return c.id;
+    }
+    return null;
+  };
+  for (const line of raw.split('\n')) {
+    let field = '', value = '';
+    const tbl = line.match(/^\s*\|([^|]+)\|([^|]+)\|/);
+    if (tbl) {
+      field = clean(tbl[1]);
+      value = clean(tbl[2]);
+    } else {
+      const plain = line.match(/^\s*\*{0,2}([A-Za-z][\w &]+?)\*{0,2}\s*:\s*(.+)/);
+      if (plain) { field = clean(plain[1]); value = clean(plain[2]); }
+    }
+    if (!field || !value) continue;
+    if (/^[-:|]+$/.test(value) || /^[-:|]+$/.test(field)) continue;
+    const key = norm(field);
+    if (key === 'field' || key === 'suggestedentry') continue;
+    const isNone = /^(\(none\)|none|n\/a|-)$/i.test(value);
+    switch (key) {
+      case 'title': out.title = value; break;
+      case 'dealtype': { const dt = value.toUpperCase(); if (['SALE','PROMO','BOTH','STACKABLE'].includes(dt)) out.dealType = dt; break; }
+      case 'description': out.description = value; break;
+      case 'productimageurl': case 'imageurl': out.imageUrl = value; break;
+      case 'producturl': case 'link': out.link = value; break;
+      case 'promocode': case 'code': if (!isNone) out.code = value; break;
+      case 'category': case 'cat': { const cat = matchCat(value); if (cat) out.cat = cat; break; }
+      case 'expires': {
+        if (!isNone && !/pick/i.test(value)) { const d = new Date(value); if (!isNaN(d)) out.expires = d.toISOString().slice(0, 10); }
+        break;
+      }
+      case 'featured': {
+        if (!isNone && !/optional/i.test(value)) out.featured = /^(true|yes|1|featured)$/i.test(value);
+        break;
+      }
+      case 'status': { const st = value.toUpperCase(); if (['ACTIVE','INACTIVE'].includes(st)) out.status = st; break; }
+      default: break;
+    }
+  }
+  return out;
+}
+
 function DealForm({initial,onSave,onCancel}){
   const toast=useToast();
   const [s,setS]=useState(initial||{
@@ -1020,6 +1079,17 @@ function DealForm({initial,onSave,onCancel}){
   });
 
   const set=(k,v)=>setS(p=>({...p,[k]:v}));
+
+  const [pasteText,setPasteText]=useState('');
+  const handleParse=()=>{
+    const parsed=parseDealText(pasteText);
+    const count=Object.keys(parsed).length;
+    if(count===0){ toast?.("Could not parse any fields — check the format and try again","err"); return; }
+    setS(p=>({...p,...parsed}));
+    setPasteText('');
+    if(count<3) toast?.(`Partially filled ${count} field${count>1?"s":""}. Please review.`,"info");
+    else toast?.(`Auto-filled ${count} field${count>1?"s":""}. Review before saving.`,"ok");
+  };
 
   const submit=(e)=>{
     e.preventDefault();
@@ -1037,6 +1107,24 @@ function DealForm({initial,onSave,onCancel}){
 
   return(
     <form onSubmit={submit} style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:10,padding:12}}>
+        <label style={{fontSize:12,color:"var(--muted)",marginBottom:6,display:"block",fontWeight:600}}>⚡ Paste deal info (Markdown table or Field: Value)</label>
+        <textarea
+          value={pasteText}
+          onChange={e=>setPasteText(e.target.value)}
+          rows={4}
+          placeholder="| Field | Suggested Entry |
+| Title | My Deal Title |
+| Deal Type | SALE |
+— or —
+Title: My Deal Title
+Deal Type: SALE"
+          style={{fontFamily:"monospace",fontSize:12,marginBottom:8}}
+        />
+        <button type="button" className="btn btn-o" onClick={handleParse} style={{fontSize:13,padding:"6px 14px"}}>
+          <I n="check" s={13}/> Parse &amp; Autofill
+        </button>
+      </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <div>
           <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Title *</label>
