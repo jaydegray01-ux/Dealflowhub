@@ -142,8 +142,6 @@ const fromDb = (d) => ({
   voteUp:           d.vote_up ?? 0,
   voteDown:         d.vote_down ?? 0,
   status:           d.status || 'ACTIVE',
-  isBulkCvsDeal:    d.is_bulk_cvs_deal ?? false,
-  bulkCvsNotes:     d.bulk_cvs_notes || '',
   imageUrl:         d.image_url || '',
   stackInstructions:d.stack_instructions || '',
 });
@@ -162,8 +160,6 @@ const toDb = (d) => ({
   vote_up:           d.voteUp ?? 0,
   vote_down:         d.voteDown ?? 0,
   status:            d.status || 'ACTIVE',
-  is_bulk_cvs_deal:  d.isBulkCvsDeal ?? false,
-  bulk_cvs_notes:    d.bulkCvsNotes || '',
   image_url:         d.imageUrl || '',
   stack_instructions:d.stackInstructions || '',
 });
@@ -471,7 +467,6 @@ function DealCard({deal}){
           {(deal.dealType==="STACKABLE"||deal.dealType==="BOTH")&&(
             <span className="tag tag-ok">💰 Stack</span>
           )}
-          {deal.isBulkCvsDeal&&<span className="tag tag-warn">📦 Bulk CVS</span>}
         </div>
         <h3 style={{fontSize:15,marginBottom:6,lineHeight:1.3}}>{deal.title}</h3>
         <p style={{fontSize:13,color:"var(--muted)",marginBottom:10,lineHeight:1.4}}>{deal.description}</p>
@@ -648,7 +643,6 @@ function DealsPage(){
   const [dt,setDt]=useState(params.dt||"");
   const [cat,setCat]=useState(params.cat||"");
   const [stack,setStack]=useState(!!params.stack);
-  const [bulkCvs,setBulkCvs]=useState(!!params.bulkCvs);
   const [q,setQ]=useState(params.q||"");
   const [sideOpen,setSideOpen]=useState(false);
   const [allDeals,setAllDeals]=useState([]);
@@ -663,9 +657,8 @@ function DealsPage(){
     setDt(params.dt||"");
     setCat(params.cat||"");
     setStack(!!params.stack);
-    setBulkCvs(!!params.bulkCvs);
     setQ(params.q||"");
-  },[params.dt,params.cat,params.stack,params.bulkCvs,params.q]);
+  },[params.dt,params.cat,params.stack,params.q]);
 
   const pickCat=(id)=>{
     const found=CATS.find(c=>c.id===id);
@@ -681,10 +674,9 @@ function DealsPage(){
     if(dt)   list=list.filter(d=>d.dealType===dt);
     if(cat)  list=list.filter(d=>d.cat===cat);
     if(stack)list=list.filter(d=>["STACKABLE","BOTH"].includes(d.dealType));
-    if(bulkCvs) list=list.filter(d=>d.isBulkCvsDeal);
     if(q)    list=list.filter(d=>d.title.toLowerCase().includes(q.toLowerCase())||(d.description||"").toLowerCase().includes(q.toLowerCase()));
     return list;
-  },[allDeals,dt,cat,stack,bulkCvs,q]);
+  },[allDeals,dt,cat,stack,q]);
 
   const Sidebar=()=>(
     <div id="deals-sidebar" className={`sidebar card${sideOpen?" open":""}`}>
@@ -711,10 +703,6 @@ function DealsPage(){
         <input type="checkbox" checked={stack} onChange={e=>setStack(e.target.checked)} style={{width:"auto"}}/>
         Stackable (Promo+)
       </label>
-      <label style={{display:"flex",alignItems:"center",gap:8,fontSize:14,cursor:"pointer",marginTop:10}}>
-        <input type="checkbox" checked={bulkCvs} onChange={e=>setBulkCvs(e.target.checked)} style={{width:"auto"}}/>
-        📦 Bulk CVS Deals
-      </label>
     </div>
   );
 
@@ -736,11 +724,6 @@ function DealsPage(){
           <I n="search" s={14} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}/>
         </div>
       </div>
-      {bulkCvs&&(
-        <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-          <button className="tag tag-warn" style={{cursor:"pointer",border:"none"}} onClick={()=>setBulkCvs(false)}>📦 Bulk CVS ✕</button>
-        </div>
-      )}
       <div className="deals-layout">
         <Sidebar/>
         <div style={{flex:1}}>
@@ -852,7 +835,6 @@ function DealPage(){
           <span className={`tag ${typeTag[deal.dealType]||"tag-p"}`}>{DT_LABEL[deal.dealType]||deal.dealType}</span>
           {deal.featured&&<span className="tag tag-warn"><I n="star" s={11}/> Featured</span>}
           {cat&&<span className="tag tag-p">{cat.label}</span>}
-          {deal.isBulkCvsDeal&&<span className="tag tag-warn">📦 Bulk CVS Deal</span>}
         </div>
         <h1 style={{fontSize:24,marginBottom:10}}>{deal.title}</h1>
 
@@ -863,13 +845,6 @@ function DealPage(){
         )}
 
         <p style={{color:"var(--muted)",marginBottom:20,lineHeight:1.6}}>{deal.description}</p>
-
-        {deal.isBulkCvsDeal&&(
-          <div style={{background:"#ffd16622",border:"1.5px solid var(--warn)",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
-            <div style={{fontWeight:700,fontSize:13,color:"var(--warn)",marginBottom:4}}>📦 Bulk CVS Deal</div>
-            {deal.bulkCvsNotes&&<p style={{fontSize:13,color:"var(--txt)",lineHeight:1.6,margin:0}}>{deal.bulkCvsNotes}</p>}
-          </div>
-        )}
 
         <div style={{background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:10,padding:"14px 18px",marginBottom:20}}>
           <VoteBar deal={deal} onVoted={refreshDeal}/>
@@ -995,7 +970,7 @@ function DealForm({initial,onSave,onCancel}){
   const [s,setS]=useState(initial||{
     title:"",description:"",link:"https://",dealType:"SALE",code:"",
     cat:"electronics",expires:ad(7).slice(0,10),featured:false,status:"ACTIVE",
-    imageUrl:"", stackInstructions:"", isBulkCvsDeal:false, bulkCvsNotes:"",
+    imageUrl:"", stackInstructions:"",
   });
 
   const set=(k,v)=>setS(p=>({...p,[k]:v}));
@@ -1089,18 +1064,6 @@ function DealForm({initial,onSave,onCancel}){
             <option value="INACTIVE">INACTIVE</option>
           </select>
         </div>
-      </div>
-      <div style={{background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:8,padding:"12px 14px"}}>
-        <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:8}}>
-          <input type="checkbox" checked={s.isBulkCvsDeal||false} onChange={e=>set("isBulkCvsDeal",e.target.checked)} style={{width:"auto"}}/>
-          <span style={{fontWeight:600,fontSize:14}}>📦 Bulk CVS Deal</span>
-        </label>
-        {s.isBulkCvsDeal&&(
-          <div>
-            <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Bulk CVS Notes (optional)</label>
-            <input value={s.bulkCvsNotes||""} onChange={e=>set("bulkCvsNotes",e.target.value)} placeholder="e.g. Buy 4, get 40% off. In-store only."/>
-          </div>
-        )}
       </div>
       <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
         {onCancel&&<button type="button" className="btn btn-d" onClick={onCancel}>Cancel</button>}
@@ -1236,7 +1199,7 @@ function AdminDash(){
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}>
                 <thead>
                   <tr style={{borderBottom:"1.5px solid var(--bdr)",color:"var(--muted)",fontSize:12}}>
-                    {["Title","Type","Cat","Clicks","Expires","Status","CVS",""].map(h=>(
+                    {["Title","Type","Cat","Clicks","Expires","Status",""].map(h=>(
                       <th key={h} style={{padding:"8px 12px",textAlign:"left",fontWeight:600}}>{h}</th>
                     ))}
                   </tr>
@@ -1260,9 +1223,6 @@ function AdminDash(){
                           <option value="ACTIVE">ACTIVE</option>
                           <option value="INACTIVE">INACTIVE</option>
                         </select>
-                      </td>
-                      <td style={{padding:"10px 12px"}}>
-                        {d.isBulkCvsDeal&&<span className="tag tag-warn" style={{fontSize:11}}>📦 CVS</span>}
                       </td>
                       <td style={{padding:"10px 12px"}}>
                         <div style={{display:"flex",gap:6}}>
