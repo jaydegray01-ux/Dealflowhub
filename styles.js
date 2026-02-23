@@ -66,6 +66,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--p)}
   .nav-logo{font-size:17px}
 }
 img{max-width:100%;display:block}
+/* Voting buttons */
+.vote-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--bdr);background:var(--surf2);color:var(--muted);transition:all .15s}
+.vote-btn:hover{border-color:var(--p);color:var(--p)}
+/* Accordion */
+.accordion-header{width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:none;border:none;cursor:pointer;text-align:left}
+.accordion-header:hover{background:rgba(255,255,255,.03)}
 `;
 document.head.appendChild(_st);
 document.title = "Deal Flow Hub";
@@ -110,23 +116,85 @@ const CATS = [
   {id:"home-and-kitchen",         label:"Home & Kitchen",           emoji:"🏠", adult:false},
   {id:"pet-supplies",             label:"Pet Supplies",             emoji:"🐾", adult:false},
   {id:"toys-and-games",           label:"Toys & Games",             emoji:"🎮", adult:false},
+  {id:"baby",                     label:"Baby",                     emoji:"👶", adult:false},
   {id:"tools-and-home-improvement",label:"Tools & Home Improvement",emoji:"🔧", adult:false},
   {id:"other",                    label:"Other",                    emoji:"🏷️", adult:false},
   {id:"adult-products",           label:"Adult Products 🔞",        emoji:"🔞", adult:true },
 ];
 
 let _deals = [
-  {id:"d1", title:"50% off Cloud Hosting",   desc:"Premium VPS at half price.", link:"https://example.com", dealType:"SALE",  code:"",         cat:"electronics",    clicks:42, saved:12, expires:ad(5),  createdAt:sd(2), featured:true,  active:true},
-  {id:"d2", title:"Designer T-Shirts Promo", desc:"Use code for 30% off.",       link:"https://example.com", dealType:"PROMO", code:"STYLE30",   cat:"beauty",         clicks:18, saved:7,  expires:ad(10), createdAt:sd(1), featured:false, active:true},
-  {id:"d3", title:"Pizza + Promo Bundle",    desc:"Free pizza and promo code.",   link:"https://example.com", dealType:"BOTH",  code:"PIZZA50",   cat:"home-and-kitchen",clicks:99, saved:34, expires:ad(2),  createdAt:sd(0), featured:true,  active:true},
-  {id:"d4", title:"Adult Content Deal",      desc:"Exclusive promo.",             link:"https://example.com", dealType:"PROMO", code:"ADULT20",   cat:"adult-products", clicks:5,  saved:2,  expires:ad(7),  createdAt:sd(3), featured:false, active:true},
+  {id:"d1", title:"50% off Cloud Hosting",   desc:"Premium VPS at half price.", link:"https://example.com", dealType:"SALE",  code:"",         cat:"electronics",    clicks:42, saved:12, expires:ad(5),  createdAt:sd(2), featured:true,  active:true, voteUp:0, voteDown:0, status:"active", isBulkCvsDeal:false, bulkCvsNotes:""},
+  {id:"d2", title:"Designer T-Shirts Promo", desc:"Use code for 30% off.",       link:"https://example.com", dealType:"PROMO", code:"STYLE30",   cat:"beauty",         clicks:18, saved:7,  expires:ad(10), createdAt:sd(1), featured:false, active:true, voteUp:0, voteDown:0, status:"active", isBulkCvsDeal:false, bulkCvsNotes:""},
+  {id:"d3", title:"Pizza + Promo Bundle",    desc:"Free pizza and promo code.",   link:"https://example.com", dealType:"BOTH",  code:"PIZZA50",   cat:"home-and-kitchen",clicks:99, saved:34, expires:ad(2),  createdAt:sd(0), featured:true,  active:true, voteUp:0, voteDown:0, status:"active", isBulkCvsDeal:false, bulkCvsNotes:""},
+  {id:"d4", title:"Adult Content Deal",      desc:"Exclusive promo.",             link:"https://example.com", dealType:"PROMO", code:"ADULT20",   cat:"adult-products", clicks:5,  saved:2,  expires:ad(7),  createdAt:sd(3), featured:false, active:true, voteUp:0, voteDown:0, status:"active", isBulkCvsDeal:false, bulkCvsNotes:""},
 ];
 
 const getDeals = () => [..._deals];
 const getDeal  = (id) => _deals.find(d=>d.id===id)||null;
-const addDeal  = (d)  => { _deals=[{...d,id:"d"+Date.now(),clicks:0,saved:0,createdAt:new Date().toISOString()},..._deals]; };
+const addDeal  = (d)  => { _deals=[{voteUp:0,voteDown:0,status:"active",isBulkCvsDeal:false,bulkCvsNotes:"",...d,id:"d"+Date.now(),clicks:0,saved:0,createdAt:new Date().toISOString()},..._deals]; };
 const updateDeal=(id,patch)=>{ _deals=_deals.map(d=>d.id===id?{...d,...patch}:d); };
 const deleteDeal=(id)=>{ _deals=_deals.filter(d=>d.id!==id); };
+
+// ── Vote helpers ──────────────────────────────────────────────
+const DELETE_AFTER_DOWNVOTES = 10;
+
+const getVotes = ()=>{ try{ return JSON.parse(localStorage.getItem("dfh_votes")||"{}"); }catch{ return {}; } };
+const setVoteForDeal = (dealId, vote)=>{
+  const v=getVotes(); v[dealId]=vote; localStorage.setItem("dfh_votes",JSON.stringify(v));
+};
+const getVoteForDeal = (dealId)=>getVotes()[dealId]||null;
+
+// ── Methods data ──────────────────────────────────────────────
+let _methods = [
+  {
+    id:"m1",
+    title:"Rakuten Cashback",
+    tabType:"earn_more",
+    summary:"Earn cashback on purchases at 3,500+ stores.",
+    description:"Rakuten (formerly Ebates) gives you a percentage of your purchase back as cash every quarter.",
+    steps:["Sign up for a free Rakuten account","Install the Rakuten browser extension","Activate cashback before shopping at any participating store","Get paid via PayPal or check every quarter"],
+    potentialRange:"$50–$500/year",
+    requirements:"Free to join. Must activate before shopping.",
+    tips:"Stack with store sales and promo codes for maximum savings. Refer friends for bonus cashback.",
+    links:["https://www.rakuten.com"],
+    order:0,
+    createdAt:new Date().toISOString(),
+  },
+  {
+    id:"m2",
+    title:"Ibotta Grocery Cashback",
+    tabType:"earn_more",
+    summary:"Earn cashback on groceries at major supermarkets.",
+    description:"Ibotta lets you earn cashback on groceries by selecting offers before you shop, then scanning your receipt.",
+    steps:["Download the free Ibotta app","Browse and unlock offers before shopping","Shop at a participating store","Scan your receipt or link your loyalty card","Cash out via PayPal or gift card ($20 minimum)"],
+    potentialRange:"$20–$150/month",
+    requirements:"Smartphone required. Available at most US grocery chains.",
+    tips:"Check the app weekly — offers refresh. Combine with store sales.",
+    links:["https://home.ibotta.com"],
+    order:1,
+    createdAt:new Date().toISOString(),
+  },
+  {
+    id:"m3",
+    title:"Use a Cashback Credit Card",
+    tabType:"save_more",
+    summary:"Earn 1.5–5% back on every purchase automatically.",
+    description:"Cashback credit cards give you a percentage of every purchase back, automatically. No activation needed per purchase.",
+    steps:["Compare cashback credit cards (Chase Freedom, Discover it, Citi Double Cash, etc.)","Apply for a card that matches your spending habits","Use it for everyday purchases","Pay the balance in full each month to avoid interest","Redeem cashback as statement credit, direct deposit, or gift cards"],
+    potentialRange:"Save 1.5–5% on all spending",
+    requirements:"Good to excellent credit recommended. Must pay balance in full to benefit.",
+    tips:"Never carry a balance — interest charges will erase cashback gains.",
+    links:[],
+    order:0,
+    createdAt:new Date().toISOString(),
+  },
+];
+
+const getMethods    = ()=>[..._methods];
+const getMethod     = (id)=>_methods.find(m=>m.id===id)||null;
+const addMethod     = (m)=>{ _methods=[..._methods,{...m,id:"m"+Date.now(),order:_methods.filter(x=>x.tabType===m.tabType).length,createdAt:new Date().toISOString()}]; };
+const updateMethod  = (id,patch)=>{ _methods=_methods.map(m=>m.id===id?{...m,...patch}:m); };
+const deleteMethod  = (id)=>{ _methods=_methods.filter(m=>m.id!==id); };
 
 // ── Toast context ─────────────────────────────────────────────
 const ToastCtx = createContext(null);
@@ -291,6 +359,9 @@ function Navbar(){
       <button className="btn btn-d" style={{padding:"7px 14px"}} onClick={()=>nav("deals")}>
         <I n="deals" s={14}/> Deals
       </button>
+      <button className="btn btn-d" style={{padding:"7px 14px"}} onClick={()=>nav("otherways")}>
+        💡 Save &amp; Earn
+      </button>
       <button className="btn btn-d" style={{padding:"7px 14px"}} onClick={()=>nav("raffle")}>
         <I n="gift" s={14}/> Raffle
       </button>
@@ -334,6 +405,7 @@ function DealCard({deal}){
           {(deal.dealType==="STACKABLE"||deal.dealType==="BOTH")&&(
             <span className="tag tag-ok">💰 Stack</span>
           )}
+          {deal.isBulkCvsDeal&&<span className="tag tag-warn">📦 Bulk CVS</span>}
         </div>
         <h3 style={{fontSize:15,marginBottom:6,lineHeight:1.3}}>{deal.title}</h3>
         <p style={{fontSize:13,color:"var(--muted)",marginBottom:10,lineHeight:1.4}}>{deal.desc}</p>
@@ -342,7 +414,71 @@ function DealCard({deal}){
           <span><I n="eye" s={11}/> {deal.clicks}</span>
           <span><I n="star" s={11}/> {deal.saved}</span>
         </div>
+        <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--bdr)"}}>
+          <VoteBar deal={deal} compact={true}/>
+        </div>
       </div>
+    </div>
+  );
+}
+
+// ── VoteBar ───────────────────────────────────────────────────
+function VoteBar({deal, onVoted, compact=false}){
+  const toast=useToast();
+  const [localVote,setLocalVote]=useState(()=>getVoteForDeal(deal.id));
+  const [up,setUp]=useState(deal.voteUp||0);
+  const [dn,setDn]=useState(deal.voteDown||0);
+
+  const vote=(type)=>{
+    const prev=localVote;
+    let newUp=up, newDn=dn;
+
+    if(prev===type){
+      if(type==="up") newUp=Math.max(0,up-1);
+      else newDn=Math.max(0,dn-1);
+      setLocalVote(null);
+      setVoteForDeal(deal.id,null);
+    } else {
+      if(prev==="up") newUp=Math.max(0,up-1);
+      if(prev==="down") newDn=Math.max(0,dn-1);
+      if(type==="up") newUp=newUp+1;
+      else newDn=newDn+1;
+      setLocalVote(type);
+      setVoteForDeal(deal.id,type);
+    }
+
+    setUp(newUp);
+    setDn(newDn);
+    updateDeal(deal.id,{voteUp:newUp,voteDown:newDn});
+
+    if(newDn>=DELETE_AFTER_DOWNVOTES){
+      updateDeal(deal.id,{status:"flagged"});
+      if(!compact) toast?.(`⚠️ Deal flagged due to ${newDn} downvotes`,"warn");
+    }
+
+    if(onVoted) onVoted();
+    if(!compact) toast?.(type==="up"?"Thanks for the feedback! 👍":"Thanks for the feedback! 👎","info");
+  };
+
+  const btnStyle=(type)=>({
+    padding: compact?"4px 8px":"6px 12px",
+    fontSize: compact?11:13,
+    fontWeight:600,
+    border:`1.5px solid ${localVote===type?(type==="up"?"var(--ok)":"var(--err)"):"var(--bdr)"}`,
+    background: localVote===type?(type==="up"?"#4dffb422":"#ff4d6d22"):"var(--surf2)",
+    color: localVote===type?(type==="up"?"var(--ok)":"var(--err)"):"var(--muted)",
+    borderRadius:8,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,transition:"all .15s"
+  });
+
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+      {!compact&&<span style={{fontSize:12,color:"var(--muted)",marginRight:2}}>Did it work?</span>}
+      <button style={btnStyle("up")} onClick={e=>{e.stopPropagation();vote("up");}}>
+        👍 {up}
+      </button>
+      <button style={btnStyle("down")} onClick={e=>{e.stopPropagation();vote("down");}}>
+        👎 {dn}
+      </button>
     </div>
   );
 }
@@ -438,6 +574,7 @@ function DealsPage(){
   const [dt,setDt]=useState(params.dt||"");
   const [cat,setCat]=useState(params.cat||"");
   const [stack,setStack]=useState(!!params.stack);
+  const [bulkCvs,setBulkCvs]=useState(!!params.bulkCvs);
   const [q,setQ]=useState(params.q||"");
   const [sideOpen,setSideOpen]=useState(false);
 
@@ -446,8 +583,9 @@ function DealsPage(){
     setDt(params.dt||"");
     setCat(params.cat||"");
     setStack(!!params.stack);
+    setBulkCvs(!!params.bulkCvs);
     setQ(params.q||"");
-  },[params.dt,params.cat,params.stack,params.q]);
+  },[params.dt,params.cat,params.stack,params.bulkCvs,params.q]);
 
   const pickCat=(id)=>{
     const found=CATS.find(c=>c.id===id);
@@ -463,9 +601,10 @@ function DealsPage(){
     if(dt)   list=list.filter(d=>d.dealType===dt);
     if(cat)  list=list.filter(d=>d.cat===cat);
     if(stack)list=list.filter(d=>["STACKABLE","BOTH"].includes(d.dealType));
+    if(bulkCvs) list=list.filter(d=>d.isBulkCvsDeal);
     if(q)    list=list.filter(d=>d.title.toLowerCase().includes(q.toLowerCase())||d.desc.toLowerCase().includes(q.toLowerCase()));
     return list;
-  },[dt,cat,stack,q]);
+  },[dt,cat,stack,bulkCvs,q]);
 
   const Sidebar=()=>(
     <div id="deals-sidebar" className={`sidebar card${sideOpen?" open":""}`}>
@@ -492,6 +631,10 @@ function DealsPage(){
         <input type="checkbox" checked={stack} onChange={e=>setStack(e.target.checked)} style={{width:"auto"}}/>
         Stackable (Promo+)
       </label>
+      <label style={{display:"flex",alignItems:"center",gap:8,fontSize:14,cursor:"pointer",marginTop:10}}>
+        <input type="checkbox" checked={bulkCvs} onChange={e=>setBulkCvs(e.target.checked)} style={{width:"auto"}}/>
+        📦 Bulk CVS Deals
+      </label>
     </div>
   );
 
@@ -513,6 +656,11 @@ function DealsPage(){
           <I n="search" s={14} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}/>
         </div>
       </div>
+      {bulkCvs&&(
+        <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+          <button className="tag tag-warn" style={{cursor:"pointer",border:"none"}} onClick={()=>setBulkCvs(false)}>📦 Bulk CVS ✕</button>
+        </div>
+      )}
       <div className="deals-layout">
         <Sidebar/>
         <div style={{flex:1}}>
@@ -608,6 +756,7 @@ function DealPage(){
           <span className={`tag ${typeTag[deal.dealType]||"tag-p"}`}>{DT_LABEL[deal.dealType]||deal.dealType}</span>
           {deal.featured&&<span className="tag tag-warn"><I n="star" s={11}/> Featured</span>}
           {cat&&<span className="tag tag-p">{cat.label}</span>}
+          {deal.isBulkCvsDeal&&<span className="tag tag-warn">📦 Bulk CVS Deal</span>}
         </div>
         <h1 style={{fontSize:24,marginBottom:10}}>{deal.title}</h1>
 
@@ -618,6 +767,17 @@ function DealPage(){
         )}
 
         <p style={{color:"var(--muted)",marginBottom:20,lineHeight:1.6}}>{deal.desc}</p>
+
+        {deal.isBulkCvsDeal&&(
+          <div style={{background:"#ffd16622",border:"1.5px solid var(--warn)",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
+            <div style={{fontWeight:700,fontSize:13,color:"var(--warn)",marginBottom:4}}>📦 Bulk CVS Deal</div>
+            {deal.bulkCvsNotes&&<p style={{fontSize:13,color:"var(--txt)",lineHeight:1.6,margin:0}}>{deal.bulkCvsNotes}</p>}
+          </div>
+        )}
+
+        <div style={{background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:10,padding:"14px 18px",marginBottom:20}}>
+          <VoteBar deal={deal} onVoted={()=>setDeal(getDeal(deal.id))}/>
+        </div>
 
         <div style={{display:"flex",gap:16,marginBottom:24,flexWrap:"wrap",fontSize:14,color:"var(--muted)"}}>
           <span><I n="clock" s={13}/> {tu(deal.expires)}</span>
@@ -730,7 +890,7 @@ function DealForm({initial,onSave,onCancel}){
   const [s,setS]=useState(initial||{
     title:"",desc:"",link:"https://",dealType:"SALE",code:"",
     cat:"electronics",expires:ad(7).slice(0,10),featured:false,active:true,
-    imageUrl:"", stackInstructions:"",
+    imageUrl:"", stackInstructions:"", isBulkCvsDeal:false, bulkCvsNotes:"",
   });
 
   const set=(k,v)=>setS(p=>({...p,[k]:v}));
@@ -822,6 +982,18 @@ function DealForm({initial,onSave,onCancel}){
           Active
         </label>
       </div>
+      <div style={{background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:8,padding:"12px 14px"}}>
+        <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:8}}>
+          <input type="checkbox" checked={s.isBulkCvsDeal||false} onChange={e=>set("isBulkCvsDeal",e.target.checked)} style={{width:"auto"}}/>
+          <span style={{fontWeight:600,fontSize:14}}>📦 Bulk CVS Deal</span>
+        </label>
+        {s.isBulkCvsDeal&&(
+          <div>
+            <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Bulk CVS Notes (optional)</label>
+            <input value={s.bulkCvsNotes||""} onChange={e=>set("bulkCvsNotes",e.target.value)} placeholder="e.g. Buy 4, get 40% off. In-store only."/>
+          </div>
+        )}
+      </div>
       <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
         {onCancel&&<button type="button" className="btn btn-d" onClick={onCancel}>Cancel</button>}
         <button type="submit" className="btn btn-p"><I n="check" s={14}/> Save Deal</button>
@@ -837,8 +1009,12 @@ function AdminDash(){
   const [deals,setDeals]=useState(getDeals);
   const [editing,setEditing]=useState(null);
   const [adding,setAdding]=useState(false);
+  const [adminSection,setAdminSection]=useState("deals");
+  const [methods,setMethods]=useState(getMethods);
+  const [dealFilter,setDealFilter]=useState("all");
 
   const refresh=()=>setDeals(getDeals());
+  const refreshMethods=()=>setMethods(getMethods());
 
   const stats=[
     {l:"Total Deals",  v:deals.length,                          ic:"deals", c:"var(--p)"},
@@ -847,85 +1023,392 @@ function AdminDash(){
     {l:"Featured",     v:deals.filter(d=>d.featured).length,    ic:"star",  c:"var(--p2)"},
   ];
 
+  const displayedDeals = dealFilter==="flagged"
+    ? deals.filter(d=>d.status==="flagged")
+    : deals;
+
   return(
     <Guard adm>
       <div className="page">
         <div style={{display:"flex",alignItems:"center",marginBottom:24}}>
           <h1 style={{flex:1,fontSize:22}}><I n="admin" s={18}/> Admin Dashboard</h1>
-          <button className="btn btn-p" onClick={()=>setAdding(true)}><I n="plus" s={14}/> Add Deal</button>
+          {adminSection==="deals"&&<button className="btn btn-p" onClick={()=>setAdding(true)}><I n="plus" s={14}/> Add Deal</button>}
         </div>
 
-        {/* Issue 13 fixed: renamed map variable from `s` to `stat` to avoid shadowing DealForm's `s` setter */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:14,marginBottom:28}}>
-          {stats.map(stat=>(
-            <div key={stat.l} className="stat">
-              <I n={stat.ic} s={18} c={stat.c} style={{marginBottom:6}}/>
-              <div className="stat-v" style={{color:stat.c}}>{stat.v}</div>
-              <div style={{fontSize:12,color:"var(--muted)",marginTop:3}}>{stat.l}</div>
+        <div style={{display:"flex",gap:8,marginBottom:24}}>
+          <button className={`btn ${adminSection==="deals"?"btn-p":"btn-d"}`} onClick={()=>setAdminSection("deals")}>
+            🏷️ Deals
+          </button>
+          <button className={`btn ${adminSection==="methods"?"btn-p":"btn-d"}`} onClick={()=>setAdminSection("methods")}>
+            💡 Save &amp; Earn Methods
+          </button>
+        </div>
+
+        {adminSection==="methods" ? (
+          <MethodsAdmin methods={methods} refresh={refreshMethods} toast={toast}/>
+        ) : (
+          <>
+            {/* Issue 13 fixed: renamed map variable from `s` to `stat` to avoid shadowing DealForm's `s` setter */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:14,marginBottom:28}}>
+              {stats.map(stat=>(
+                <div key={stat.l} className="stat">
+                  <I n={stat.ic} s={18} c={stat.c} style={{marginBottom:6}}/>
+                  <div className="stat-v" style={{color:stat.c}}>{stat.v}</div>
+                  <div style={{fontSize:12,color:"var(--muted)",marginTop:3}}>{stat.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {adding&&(
+              <div className="card" style={{marginBottom:24}}>
+                <h3 style={{marginBottom:16}}>Add New Deal</h3>
+                <DealForm
+                  onSave={d=>{ addDeal(d); refresh(); setAdding(false); toast?.("Deal added","ok"); }}
+                  onCancel={()=>setAdding(false)}
+                />
+              </div>
+            )}
+
+            {editing&&(
+              <div className="modal-bg">
+                <div className="modal" style={{maxWidth:560,width:"95%"}}>
+                  <h3 style={{marginBottom:16}}>Edit Deal</h3>
+                  <DealForm
+                    initial={editing}
+                    onSave={d=>{ updateDeal(editing.id,d); refresh(); setEditing(null); toast?.("Deal updated","ok"); }}
+                    onCancel={()=>setEditing(null)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
+              <span style={{fontSize:13,color:"var(--muted)"}}>Filter:</span>
+              {[["all","All Deals"],["flagged","⚠️ Flagged"]].map(([v,l])=>(
+                <button key={v} className={`btn ${dealFilter===v?"btn-p":"btn-d"}`} style={{padding:"5px 12px",fontSize:13}}
+                  onClick={()=>setDealFilter(v)}>{l}</button>
+              ))}
+              {deals.filter(d=>d.status==="flagged").length>0&&(
+                <span className="tag tag-err" style={{fontSize:12}}>
+                  {deals.filter(d=>d.status==="flagged").length} flagged
+                </span>
+              )}
+            </div>
+
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}>
+                <thead>
+                  <tr style={{borderBottom:"1.5px solid var(--bdr)",color:"var(--muted)",fontSize:12}}>
+                    {["Title","Type","Cat","Clicks","Expires","Active","CVS",""].map(h=>(
+                      <th key={h} style={{padding:"8px 12px",textAlign:"left",fontWeight:600}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedDeals.map(d=>(
+                    <tr key={d.id} style={{borderBottom:"1px solid var(--bdr)"}}>
+                      <td style={{padding:"10px 12px",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                        {d.title}
+                        {d.status==="flagged"&&(
+                          <span className="tag tag-err" style={{fontSize:10,marginLeft:6}}>⚠️ Flagged</span>
+                        )}
+                      </td>
+                      <td style={{padding:"10px 12px"}}><span className={`tag ${d.dealType==="SALE"?"tag-ok":d.dealType==="PROMO"?"tag-p":"tag-warn"}`}>{d.dealType}</span></td>
+                      <td style={{padding:"10px 12px",color:"var(--muted)"}}>{d.cat}</td>
+                      <td style={{padding:"10px 12px"}}>{d.clicks}</td>
+                      <td style={{padding:"10px 12px",color:"var(--muted)",fontSize:12}}>{fmtDate(d.expires)}</td>
+                      <td style={{padding:"10px 12px"}}>
+                        <input type="checkbox" checked={d.active} onChange={e=>{ updateDeal(d.id,{active:e.target.checked}); refresh(); }} style={{width:"auto"}}/>
+                      </td>
+                      <td style={{padding:"10px 12px"}}>
+                        {d.isBulkCvsDeal&&<span className="tag tag-warn" style={{fontSize:11}}>📦 CVS</span>}
+                      </td>
+                      <td style={{padding:"10px 12px"}}>
+                        <div style={{display:"flex",gap:6}}>
+                          <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12}} onClick={()=>setEditing(d)}>
+                            <I n="edit" s={12}/>
+                          </button>
+                          {d.status==="flagged"&&(
+                            <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12,color:"var(--warn)"}}
+                              onClick={()=>{ updateDeal(d.id,{status:"active"}); refresh(); toast?.("Deal unflagged","ok"); }}>
+                              ✅ Unflag
+                            </button>
+                          )}
+                          <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12,color:"var(--err)"}} onClick={()=>{ deleteDeal(d.id); refresh(); toast?.("Deal deleted","info"); }}>
+                            <I n="trash" s={12}/>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    </Guard>
+  );
+}
+
+// ── MethodForm ────────────────────────────────────────────────
+function MethodForm({initial,onSave,onCancel}){
+  const toast=useToast();
+  const [s,setS]=useState(()=>{
+    if(initial){
+      return {
+        ...initial,
+        stepsRaw:(initial.steps||[]).join("\n"),
+        linksRaw:(initial.links||[]).join("\n"),
+      };
+    }
+    return {
+      title:"",tabType:"earn_more",summary:"",description:"",
+      stepsRaw:"",potentialRange:"",requirements:"",tips:"",linksRaw:"",
+    };
+  });
+  const set=(k,v)=>setS(p=>({...p,[k]:v}));
+
+  const submit=(e)=>{
+    e.preventDefault();
+    if(!s.title.trim()){ toast?.("Title is required","err"); return; }
+    if(!s.potentialRange.trim()){ toast?.("Potential range is required","err"); return; }
+    const steps=(s.stepsRaw||"").split("\n").map(x=>x.trim()).filter(Boolean);
+    if(steps.length===0){ toast?.("At least one step is required","err"); return; }
+    const links=(s.linksRaw||"").split("\n").map(x=>x.trim()).filter(Boolean);
+    onSave({...s,steps,links});
+  };
+
+  return(
+    <form onSubmit={submit} style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <div>
+          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Title *</label>
+          <input value={s.title} onChange={e=>set("title",e.target.value)} placeholder="Method name" required/>
+        </div>
+        <div>
+          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Tab *</label>
+          <select value={s.tabType} onChange={e=>set("tabType",e.target.value)}>
+            <option value="earn_more">💰 Earn More</option>
+            <option value="save_more">🏷️ Save More</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Short Summary</label>
+        <input value={s.summary} onChange={e=>set("summary",e.target.value)} placeholder="One-line summary shown when collapsed"/>
+      </div>
+      <div>
+        <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Description</label>
+        <textarea value={s.description} onChange={e=>set("description",e.target.value)} rows={2} placeholder="Full explanation"/>
+      </div>
+      <div>
+        <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Steps * (one per line)</label>
+        <textarea value={s.stepsRaw} onChange={e=>set("stepsRaw",e.target.value)} rows={4} placeholder={"Sign up\nActivate cashback\nShop\nGet paid"}/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <div>
+          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Potential Range *</label>
+          <input value={s.potentialRange} onChange={e=>set("potentialRange",e.target.value)} placeholder="e.g. $50–$300/month"/>
+        </div>
+        <div>
+          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Requirements</label>
+          <input value={s.requirements} onChange={e=>set("requirements",e.target.value)} placeholder="e.g. Free to join"/>
+        </div>
+      </div>
+      <div>
+        <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Tips</label>
+        <textarea value={s.tips} onChange={e=>set("tips",e.target.value)} rows={2} placeholder="Pro tips for this method"/>
+      </div>
+      <div>
+        <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Links (one URL per line)</label>
+        <textarea value={s.linksRaw} onChange={e=>set("linksRaw",e.target.value)} rows={2} placeholder={"https://www.rakuten.com\nhttps://home.ibotta.com"}/>
+      </div>
+      <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+        {onCancel&&<button type="button" className="btn btn-d" onClick={onCancel}>Cancel</button>}
+        <button type="submit" className="btn btn-p">✅ Save Method</button>
+      </div>
+    </form>
+  );
+}
+
+// ── MethodsAdmin ──────────────────────────────────────────────
+function MethodsAdmin({methods,refresh,toast}){
+  const [adding,setAdding]=useState(false);
+  const [editing,setEditing]=useState(null);
+
+  return(
+    <div>
+      <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
+        <h2 style={{flex:1,fontSize:18,fontWeight:700}}>💡 Save &amp; Earn Methods</h2>
+        <button className="btn btn-p" onClick={()=>setAdding(true)}>➕ Add Method</button>
+      </div>
+
+      {adding&&(
+        <div className="card" style={{marginBottom:20}}>
+          <h3 style={{marginBottom:14}}>Add Method</h3>
+          <MethodForm
+            onSave={m=>{ addMethod(m); refresh(); setAdding(false); toast?.("Method added","ok"); }}
+            onCancel={()=>setAdding(false)}
+          />
+        </div>
+      )}
+
+      {editing&&(
+        <div className="modal-bg">
+          <div className="modal" style={{maxWidth:560,width:"95%"}}>
+            <h3 style={{marginBottom:14}}>Edit Method</h3>
+            <MethodForm
+              initial={editing}
+              onSave={m=>{ updateMethod(editing.id,m); refresh(); setEditing(null); toast?.("Method updated","ok"); }}
+              onCancel={()=>setEditing(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {["earn_more","save_more"].map(tab=>{
+        const list=methods.filter(m=>m.tabType===tab).sort((a,b)=>a.order-b.order);
+        return(
+          <div key={tab} style={{marginBottom:28}}>
+            <h3 style={{fontSize:15,fontWeight:700,marginBottom:10,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em"}}>
+              {tab==="earn_more"?"💰 Earn More":"🏷️ Save More"}
+            </h3>
+            {list.length===0?(
+              <p style={{color:"var(--muted)",fontSize:13}}>No methods yet.</p>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {list.map(m=>(
+                  <div key={m.id} className="card" style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:600,fontSize:14}}>{m.title}</div>
+                      <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>{m.potentialRange}</div>
+                    </div>
+                    <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12}} onClick={()=>setEditing(m)}>✏️</button>
+                    <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12,color:"var(--err)"}}
+                      onClick={()=>{ deleteMethod(m.id); refresh(); toast?.("Method deleted","info"); }}>🗑️</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── OtherWaysPage ─────────────────────────────────────────────
+function OtherWaysPage(){
+  const [tab,setTab]=useState("earn_more");
+  const [expanded,setExpanded]=useState({});
+  const methods=getMethods().filter(m=>m.tabType===tab).sort((a,b)=>a.order-b.order);
+
+  const toggle=(id)=>setExpanded(p=>({...p,[id]:!p[id]}));
+
+  return(
+    <div className="page">
+      <h1 style={{fontSize:26,fontWeight:800,marginBottom:6}}>💡 Other Ways to Save or Earn Money</h1>
+      <p style={{color:"var(--muted)",marginBottom:24,fontSize:14}}>
+        Beyond deal codes — practical ways to keep more of your money.
+      </p>
+
+      <div style={{display:"flex",gap:8,marginBottom:24,borderBottom:"1.5px solid var(--bdr)",paddingBottom:12}}>
+        {[["earn_more","💰 Earn More"],["save_more","🏷️ Save More"]].map(([val,label])=>(
+          <button
+            key={val}
+            className={`btn ${tab===val?"btn-p":"btn-d"}`}
+            onClick={()=>{ setTab(val); setExpanded({}); }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {methods.length===0?(
+        <div style={{textAlign:"center",padding:48,color:"var(--muted)"}}>
+          <p>No methods yet. Check back soon!</p>
+        </div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {methods.map(m=>(
+            <div key={m.id} className="card" style={{padding:0,overflow:"hidden"}}>
+              <button
+                onClick={()=>toggle(m.id)}
+                style={{
+                  width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",
+                  padding:"16px 20px",background:"none",border:"none",cursor:"pointer",
+                  textAlign:"left",gap:12
+                }}
+              >
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:16,color:"var(--txt)",marginBottom:m.summary?4:0}}>{m.title}</div>
+                  {m.summary&&<div style={{fontSize:13,color:"var(--muted)"}}>{m.summary}</div>}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                  {m.potentialRange&&(
+                    <span className="tag tag-ok" style={{fontSize:12}}>{m.potentialRange}</span>
+                  )}
+                  <span style={{fontSize:18,color:"var(--muted)"}}>{expanded[m.id]?"▲":"▼"}</span>
+                </div>
+              </button>
+
+              {expanded[m.id]&&(
+                <div style={{padding:"0 20px 20px",borderTop:"1px solid var(--bdr)"}}>
+                  {m.description&&(
+                    <p style={{fontSize:14,color:"var(--muted)",lineHeight:1.7,margin:"16px 0 12px"}}>{m.description}</p>
+                  )}
+
+                  {m.steps&&m.steps.length>0&&(
+                    <div style={{marginBottom:16}}>
+                      <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:"var(--txt)"}}>📋 Steps</div>
+                      <ol style={{paddingLeft:20,display:"flex",flexDirection:"column",gap:6}}>
+                        {m.steps.map((step,i)=>(
+                          <li key={i} style={{fontSize:14,color:"var(--txt)",lineHeight:1.6}}>{step}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginBottom:16}}>
+                    {m.potentialRange&&(
+                      <div style={{background:"var(--surf2)",borderRadius:8,padding:"12px 14px"}}>
+                        <div style={{fontSize:11,color:"var(--muted)",fontWeight:600,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Potential</div>
+                        <div style={{fontWeight:700,fontSize:15,color:"var(--ok)"}}>{m.potentialRange}</div>
+                      </div>
+                    )}
+                    {m.requirements&&(
+                      <div style={{background:"var(--surf2)",borderRadius:8,padding:"12px 14px"}}>
+                        <div style={{fontSize:11,color:"var(--muted)",fontWeight:600,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Requirements</div>
+                        <div style={{fontSize:13,color:"var(--txt)",lineHeight:1.6}}>{m.requirements}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {m.tips&&(
+                    <div style={{background:"#ffd16622",border:"1px solid var(--warn)",borderRadius:8,padding:"12px 14px",marginBottom:12}}>
+                      <div style={{fontWeight:700,fontSize:13,marginBottom:6,color:"var(--warn)"}}>💡 Tips</div>
+                      <p style={{fontSize:13,color:"var(--txt)",lineHeight:1.6,margin:0}}>{m.tips}</p>
+                    </div>
+                  )}
+
+                  {m.links&&m.links.length>0&&(
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      {m.links.map((url,i)=>(
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                          className="btn btn-o" style={{padding:"6px 14px",fontSize:13}}>
+                          🔗 Visit →
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
-
-        {adding&&(
-          <div className="card" style={{marginBottom:24}}>
-            <h3 style={{marginBottom:16}}>Add New Deal</h3>
-            <DealForm
-              onSave={d=>{ addDeal(d); refresh(); setAdding(false); toast?.("Deal added","ok"); }}
-              onCancel={()=>setAdding(false)}
-            />
-          </div>
-        )}
-
-        {editing&&(
-          <div className="modal-bg">
-            <div className="modal" style={{maxWidth:560,width:"95%"}}>
-              <h3 style={{marginBottom:16}}>Edit Deal</h3>
-              <DealForm
-                initial={editing}
-                onSave={d=>{ updateDeal(editing.id,d); refresh(); setEditing(null); toast?.("Deal updated","ok"); }}
-                onCancel={()=>setEditing(null)}
-              />
-            </div>
-          </div>
-        )}
-
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}>
-            <thead>
-              <tr style={{borderBottom:"1.5px solid var(--bdr)",color:"var(--muted)",fontSize:12}}>
-                {["Title","Type","Cat","Clicks","Expires","Active",""].map(h=>(
-                  <th key={h} style={{padding:"8px 12px",textAlign:"left",fontWeight:600}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {deals.map(d=>(
-                <tr key={d.id} style={{borderBottom:"1px solid var(--bdr)"}}>
-                  <td style={{padding:"10px 12px",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.title}</td>
-                  <td style={{padding:"10px 12px"}}><span className={`tag ${d.dealType==="SALE"?"tag-ok":d.dealType==="PROMO"?"tag-p":"tag-warn"}`}>{d.dealType}</span></td>
-                  <td style={{padding:"10px 12px",color:"var(--muted)"}}>{d.cat}</td>
-                  <td style={{padding:"10px 12px"}}>{d.clicks}</td>
-                  <td style={{padding:"10px 12px",color:"var(--muted)",fontSize:12}}>{fmtDate(d.expires)}</td>
-                  <td style={{padding:"10px 12px"}}>
-                    <input type="checkbox" checked={d.active} onChange={e=>{ updateDeal(d.id,{active:e.target.checked}); refresh(); }} style={{width:"auto"}}/>
-                  </td>
-                  <td style={{padding:"10px 12px"}}>
-                    <div style={{display:"flex",gap:6}}>
-                      <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12}} onClick={()=>setEditing(d)}>
-                        <I n="edit" s={12}/>
-                      </button>
-                      <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12,color:"var(--err)"}} onClick={()=>{ deleteDeal(d.id); refresh(); toast?.("Deal deleted","info"); }}>
-                        <I n="trash" s={12}/>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </Guard>
+      )}
+    </div>
   );
 }
 
@@ -991,6 +1474,7 @@ function App(){
     dashboard:<DashPage/>,
     admin:    <AdminDash/>,
     raffle:   <RafflePage/>,
+    otherways:<OtherWaysPage/>,
   };
 
   return(
