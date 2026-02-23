@@ -1,5 +1,5 @@
 /* ============================================================
-   DealflowHub — single-file React app
+   Deal Flow Hub — single-file React app
    All styles injected via _st; no external CSS file needed.
    ============================================================ */
 
@@ -57,8 +57,18 @@ input:focus,select:focus,textarea:focus{border-color:var(--p)}
   #deals-sidebar{display:none}
   #deals-sidebar.open{display:block}
 }
+@media(max-width:600px){
+  .page{padding:16px 12px}
+  .btn{font-size:13px;padding:9px 16px}
+  h1{font-size:24px!important}
+  .grid2{grid-template-columns:1fr}
+  .nav{padding:10px 16px;gap:10px}
+  .nav-logo{font-size:17px}
+}
+img{max-width:100%;display:block}
 `;
 document.head.appendChild(_st);
+document.title = "Deal Flow Hub";
 
 // ── React imports ────────────────────────────────────────────
 const {
@@ -95,17 +105,21 @@ const fmtDate = (s) => new Date(s).toLocaleDateString("en-US",{month:"short",day
 
 // ── Seed data ────────────────────────────────────────────────
 const CATS = [
-  {id:"tech",   label:"Tech",     icon:"chart", adult:false},
-  {id:"fashion",label:"Fashion",  icon:"star",  adult:false},
-  {id:"food",   label:"Food",     icon:"gift",  adult:false},
-  {id:"adult",  label:"Adults",   icon:"lock",  adult:true },
+  {id:"electronics",              label:"Electronics",              emoji:"📱", adult:false},
+  {id:"beauty",                   label:"Beauty",                   emoji:"💄", adult:false},
+  {id:"home-and-kitchen",         label:"Home & Kitchen",           emoji:"🏠", adult:false},
+  {id:"pet-supplies",             label:"Pet Supplies",             emoji:"🐾", adult:false},
+  {id:"toys-and-games",           label:"Toys & Games",             emoji:"🎮", adult:false},
+  {id:"tools-and-home-improvement",label:"Tools & Home Improvement",emoji:"🔧", adult:false},
+  {id:"other",                    label:"Other",                    emoji:"🏷️", adult:false},
+  {id:"adult-products",           label:"Adult Products 🔞",        emoji:"🔞", adult:true },
 ];
 
 let _deals = [
-  {id:"d1", title:"50% off Cloud Hosting",   desc:"Premium VPS at half price.", link:"https://example.com", dealType:"SALE",  code:"",         cat:"tech",   clicks:42, saved:12, expires:ad(5),  createdAt:sd(2), featured:true,  active:true},
-  {id:"d2", title:"Designer T-Shirts Promo", desc:"Use code for 30% off.",       link:"https://example.com", dealType:"PROMO", code:"STYLE30",   cat:"fashion",clicks:18, saved:7,  expires:ad(10), createdAt:sd(1), featured:false, active:true},
-  {id:"d3", title:"Pizza + Promo Bundle",    desc:"Free pizza and promo code.",   link:"https://example.com", dealType:"BOTH",  code:"PIZZA50",   cat:"food",   clicks:99, saved:34, expires:ad(2),  createdAt:sd(0), featured:true,  active:true},
-  {id:"d4", title:"Adult Content Deal",      desc:"Exclusive promo.",             link:"https://example.com", dealType:"PROMO", code:"ADULT20",   cat:"adult",  clicks:5,  saved:2,  expires:ad(7),  createdAt:sd(3), featured:false, active:true},
+  {id:"d1", title:"50% off Cloud Hosting",   desc:"Premium VPS at half price.", link:"https://example.com", dealType:"SALE",  code:"",         cat:"electronics",    clicks:42, saved:12, expires:ad(5),  createdAt:sd(2), featured:true,  active:true},
+  {id:"d2", title:"Designer T-Shirts Promo", desc:"Use code for 30% off.",       link:"https://example.com", dealType:"PROMO", code:"STYLE30",   cat:"beauty",         clicks:18, saved:7,  expires:ad(10), createdAt:sd(1), featured:false, active:true},
+  {id:"d3", title:"Pizza + Promo Bundle",    desc:"Free pizza and promo code.",   link:"https://example.com", dealType:"BOTH",  code:"PIZZA50",   cat:"home-and-kitchen",clicks:99, saved:34, expires:ad(2),  createdAt:sd(0), featured:true,  active:true},
+  {id:"d4", title:"Adult Content Deal",      desc:"Exclusive promo.",             link:"https://example.com", dealType:"PROMO", code:"ADULT20",   cat:"adult-products", clicks:5,  saved:2,  expires:ad(7),  createdAt:sd(3), featured:false, active:true},
 ];
 
 const getDeals = () => [..._deals];
@@ -272,10 +286,13 @@ function Navbar(){
   return(
     <nav className="nav">
       <span className="nav-logo" style={{cursor:"pointer"}} onClick={()=>nav("home")}>
-        <I n="fire" s={18}/> DealflowHub
+        <I n="fire" s={18}/> Deal Flow Hub
       </span>
       <button className="btn btn-d" style={{padding:"7px 14px"}} onClick={()=>nav("deals")}>
         <I n="deals" s={14}/> Deals
+      </button>
+      <button className="btn btn-d" style={{padding:"7px 14px"}} onClick={()=>nav("raffle")}>
+        <I n="gift" s={14}/> Raffle
       </button>
       {isAdmin&&(
         <button className="btn btn-d" style={{padding:"7px 14px"}} onClick={()=>nav("admin")}>
@@ -296,20 +313,27 @@ function Navbar(){
 }
 
 // ── DealCard ──────────────────────────────────────────────────
+const DT_LABEL = {SALE:"On Sale 💸", PROMO:"Promo Code 🎟️", BOTH:"Sale + Code 🏷️", STACKABLE:"Stackable 💰"};
 function DealCard({deal}){
   const {nav}=useRouter();
-  const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn"};
+  const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
   return(
     <div className="deal-card" onClick={()=>nav("deal",{id:deal.id})}>
-      <div className="deal-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:48}}>
-        {deal.dealType==="SALE"?"💸":deal.dealType==="PROMO"?"🎫":"🎁"}
+      <div className="deal-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,overflow:"hidden"}}>
+        {deal.imageUrl
+          ?<img src={deal.imageUrl} alt={deal.title} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+          :(deal.dealType==="SALE"?"💸":deal.dealType==="PROMO"?"🎫":"🎁")
+        }
       </div>
       <div className="deal-body">
         <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
           <span className={`tag ${typeTag[deal.dealType]||"tag-p"}`}>
-            {deal.dealType}
+            {DT_LABEL[deal.dealType]||deal.dealType}
           </span>
           {deal.featured&&<span className="tag tag-warn"><I n="star" s={11}/> Featured</span>}
+          {(deal.dealType==="STACKABLE"||deal.dealType==="BOTH")&&(
+            <span className="tag tag-ok">💰 Stack</span>
+          )}
         </div>
         <h3 style={{fontSize:15,marginBottom:6,lineHeight:1.3}}>{deal.title}</h3>
         <p style={{fontSize:13,color:"var(--muted)",marginBottom:10,lineHeight:1.4}}>{deal.desc}</p>
@@ -323,17 +347,47 @@ function DealCard({deal}){
   );
 }
 
+// ── RaffleBanner ─────────────────────────────────────────────
+function RaffleBanner(){
+  const {nav}=useRouter();
+  const [open,setOpen]=useState(false);
+  return(
+    <div style={{background:"linear-gradient(90deg,#4338ca,#7c3aed)",color:"#fff",padding:"12px 24px",textAlign:"center",fontSize:14}}>
+      <strong>🎁 Refer friends & family for a chance to win $20 cash.</strong> Winner picked every week.{" "}
+      <span
+        style={{cursor:"pointer",textDecoration:"underline",color:"#fde68a",fontWeight:700}}
+        onClick={()=>setOpen(o=>!o)}
+      >
+        {open?"Hide details ▲":"Learn more ▼"}
+      </span>
+      {open&&(
+        <div style={{background:"rgba(0,0,0,.35)",borderRadius:10,padding:"16px 20px",marginTop:10,textAlign:"left",maxWidth:680,margin:"10px auto 0",fontSize:13,lineHeight:1.75}}>
+          <p><strong>Who can enter:</strong> Open to US residents 18 years of age or older.</p>
+          <p><strong>No purchase necessary</strong> to enter or win.</p>
+          <p><strong>How to enter:</strong> Refer a friend or family member who creates a new Deal Flow Hub account using your referral link. Each qualifying referral counts as one entry.</p>
+          <p><strong>Winner selection:</strong> One winner is randomly selected every Sunday at 11:59 PM CT from all valid entries for that week.</p>
+          <p><strong>How winner is contacted:</strong> By email within 24 hours of the drawing. Winner must respond within 7 days to claim the $20 prize (via PayPal or Venmo).</p>
+          <p><strong>Void where prohibited by law.</strong></p>
+          <p style={{fontSize:11,opacity:.8,marginTop:8}}>This is a general summary. Please review the <span style={{textDecoration:"underline",cursor:"pointer"}} onClick={()=>nav("raffle")}>Full Official Rules</span> for complete details. Deal Flow Hub reserves the right to modify or cancel the promotion at any time.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── HomePage ──────────────────────────────────────────────────
 function HomePage(){
   const {nav}=useRouter();
   const featured=getDeals().filter(d=>d.featured&&d.active).slice(0,4);
 
   return(
-    <div className="page">
+    <div>
+      <RaffleBanner/>
+      <div className="page">
       {/* Hero */}
       <div style={{textAlign:"center",padding:"48px 0 36px"}}>
         <h1 style={{fontSize:40,fontWeight:800,marginBottom:12}}>
-          <I n="fire" s={36}/> DealflowHub
+          <I n="fire" s={36}/> Deal Flow Hub
         </h1>
         <p style={{color:"var(--muted)",fontSize:18,marginBottom:28}}>
           The best deals, promo codes and offers — curated daily.
@@ -355,7 +409,7 @@ function HomePage(){
             className="cat-card"
             onClick={()=>nav("deals",{cat:c.id})}
           >
-            <I n={c.icon} s={28}/>
+            <span style={{fontSize:28}}>{c.emoji}</span>
             <div style={{fontSize:13,fontWeight:600}}>{c.label}</div>
             {c.adult&&<span className="tag tag-err" style={{fontSize:10}}>18+</span>}
           </div>
@@ -371,6 +425,7 @@ function HomePage(){
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }
@@ -407,7 +462,7 @@ function DealsPage(){
     let list=getDeals().filter(d=>d.active);
     if(dt)   list=list.filter(d=>d.dealType===dt);
     if(cat)  list=list.filter(d=>d.cat===cat);
-    if(stack)list=list.filter(d=>["BOTH","PROMO"].includes(d.dealType));
+    if(stack)list=list.filter(d=>["STACKABLE","BOTH"].includes(d.dealType));
     if(q)    list=list.filter(d=>d.title.toLowerCase().includes(q.toLowerCase())||d.desc.toLowerCase().includes(q.toLowerCase()));
     return list;
   },[dt,cat,stack,q]);
@@ -416,7 +471,7 @@ function DealsPage(){
     <div id="deals-sidebar" className={`sidebar card${sideOpen?" open":""}`}>
       <div style={{marginBottom:16}}>
         <div style={{fontSize:13,color:"var(--muted)",marginBottom:6}}>Deal Type</div>
-        {["","SALE","PROMO","BOTH"].map(v=>(
+        {["","SALE","PROMO","BOTH","STACKABLE"].map(v=>(
           <label key={v} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,cursor:"pointer",fontSize:14}}>
             <input type="radio" name="dt" checked={dt===v} onChange={()=>setDt(v)} style={{width:"auto"}}/>
             {v||"All Types"}
@@ -519,16 +574,19 @@ function DealPage(){
     }
   };
 
-  // Bug 6 fixed: mainAction only counts clicks for SALE deals;
-  // goToProduct always counts the click-through for all deal types
+  // Updated mainAction: SALE/STACKABLE → Shop Deal; PROMO/BOTH → Copy Code & Shop
   const mainAction=()=>{
-    if(deal.dealType==="SALE"){
+    if(deal.dealType==="SALE"||deal.dealType==="STACKABLE"){
       updateDeal(deal.id,{clicks:deal.clicks+1});
       setDeal(getDeal(deal.id));
       window.open(deal.link,"_blank","noopener,noreferrer");
     } else {
-      setRevealed(true);
+      // PROMO or BOTH: copy code AND redirect
       copyCode();
+      setRevealed(true);
+      updateDeal(deal.id,{clicks:deal.clicks+1});
+      setDeal(getDeal(deal.id));
+      window.open(deal.link,"_blank","noopener,noreferrer");
     }
   };
 
@@ -538,7 +596,7 @@ function DealPage(){
     window.open(deal.link,"_blank","noopener,noreferrer");
   };
 
-  const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn"};
+  const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
 
   return(
     <div className="page" style={{maxWidth:700}}>
@@ -547,11 +605,18 @@ function DealPage(){
       </button>
       <div className="card">
         <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-          <span className={`tag ${typeTag[deal.dealType]||"tag-p"}`}>{deal.dealType}</span>
+          <span className={`tag ${typeTag[deal.dealType]||"tag-p"}`}>{DT_LABEL[deal.dealType]||deal.dealType}</span>
           {deal.featured&&<span className="tag tag-warn"><I n="star" s={11}/> Featured</span>}
           {cat&&<span className="tag tag-p">{cat.label}</span>}
         </div>
         <h1 style={{fontSize:24,marginBottom:10}}>{deal.title}</h1>
+
+        {deal.imageUrl&&(
+          <div style={{borderRadius:12,overflow:"hidden",marginBottom:20}}>
+            <img src={deal.imageUrl} alt={deal.title} style={{width:"100%",maxHeight:340,objectFit:"cover"}}/>
+          </div>
+        )}
+
         <p style={{color:"var(--muted)",marginBottom:20,lineHeight:1.6}}>{deal.desc}</p>
 
         <div style={{display:"flex",gap:16,marginBottom:24,flexWrap:"wrap",fontSize:14,color:"var(--muted)"}}>
@@ -561,7 +626,14 @@ function DealPage(){
           <span>Expires {fmtDate(deal.expires)}</span>
         </div>
 
-        {deal.dealType!=="SALE"&&(
+        {(deal.dealType==="STACKABLE"||deal.dealType==="BOTH")&&deal.stackInstructions&&(
+          <div style={{background:"var(--surf2)",border:"1.5px solid var(--ok)",borderRadius:10,padding:"14px 18px",marginBottom:16}}>
+            <div style={{fontWeight:700,fontSize:13,color:"var(--ok)",marginBottom:6}}>💰 Cashback Stack Instructions</div>
+            <p style={{fontSize:14,color:"var(--txt)",lineHeight:1.6}}>{deal.stackInstructions}</p>
+          </div>
+        )}
+
+        {deal.dealType!=="SALE"&&deal.dealType!=="STACKABLE"&&(
           <div style={{marginBottom:20}}>
             {revealed?(
               <div style={{background:"var(--surf2)",border:"1.5px solid var(--p)",borderRadius:10,padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
@@ -570,16 +642,16 @@ function DealPage(){
               </div>
             ):(
               <button className="btn btn-p" onClick={mainAction} style={{width:"100%",justifyContent:"center",padding:"14px"}}>
-                <I n="tag" s={16}/> Reveal Promo Code
+                <I n="tag" s={16}/> Copy Code &amp; Shop
               </button>
             )}
           </div>
         )}
 
         <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-          {deal.dealType==="SALE"&&(
+          {(deal.dealType==="SALE"||deal.dealType==="STACKABLE")&&(
             <button className="btn btn-p" onClick={mainAction} style={{flex:1,justifyContent:"center"}}>
-              <I n="link" s={14}/> Get Deal
+              <I n="link" s={14}/> Shop Deal
             </button>
           )}
           {(deal.dealType==="PROMO"||deal.dealType==="BOTH")&&revealed&&(
@@ -657,7 +729,8 @@ function DealForm({initial,onSave,onCancel}){
   const toast=useToast();
   const [s,setS]=useState(initial||{
     title:"",desc:"",link:"https://",dealType:"SALE",code:"",
-    cat:"tech",expires:ad(7).slice(0,10),featured:false,active:true,
+    cat:"electronics",expires:ad(7).slice(0,10),featured:false,active:true,
+    imageUrl:"", stackInstructions:"",
   });
 
   const set=(k,v)=>setS(p=>({...p,[k]:v}));
@@ -665,6 +738,14 @@ function DealForm({initial,onSave,onCancel}){
   const submit=(e)=>{
     e.preventDefault();
     if(!s.title||!s.link){ toast?.("Title and link are required","err"); return; }
+    if((s.dealType==="PROMO"||s.dealType==="BOTH")&&!s.code.trim()){
+      toast?.("Promo code is required for Promo and Sale+Code deal types","err");
+      return;
+    }
+    if(s.dealType==="STACKABLE"&&!(s.stackInstructions||"").trim()){
+      toast?.("Stack instructions are required for Stackable deal types","err");
+      return;
+    }
     onSave(s);
   };
 
@@ -681,12 +762,20 @@ function DealForm({initial,onSave,onCancel}){
             <option value="SALE">SALE</option>
             <option value="PROMO">PROMO</option>
             <option value="BOTH">BOTH</option>
+            <option value="STACKABLE">STACKABLE</option>
           </select>
         </div>
       </div>
       <div>
         <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Description</label>
         <textarea value={s.desc} onChange={e=>set("desc",e.target.value)} rows={2} placeholder="Brief description"/>
+      </div>
+      <div>
+        <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Product Image URL</label>
+        <input value={s.imageUrl||""} onChange={e=>set("imageUrl",e.target.value)} placeholder="https://images.unsplash.com/..."/>
+        {s.imageUrl&&(
+          <img src={s.imageUrl} alt="preview" style={{marginTop:8,width:"100%",maxHeight:140,objectFit:"cover",borderRadius:8,border:"1px solid var(--bdr)"}} onError={e=>{e.target.style.display="none";}}/>
+        )}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <div>
@@ -698,6 +787,19 @@ function DealForm({initial,onSave,onCancel}){
           <input value={s.code} onChange={e=>set("code",e.target.value)} placeholder="e.g. SAVE20"/>
         </div>
       </div>
+      {(s.dealType==="STACKABLE"||s.dealType==="BOTH")&&(
+        <div>
+          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>
+            Stack Instructions * <span style={{fontWeight:400}}>(required for stackable deals)</span>
+          </label>
+          <textarea
+            value={s.stackInstructions||""}
+            onChange={e=>set("stackInstructions",e.target.value)}
+            rows={2}
+            placeholder="e.g. Activate Rakuten before clicking through for 5% back on top of the sale price."
+          />
+        </div>
+      )}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <div>
           <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Category</label>
@@ -827,6 +929,56 @@ function AdminDash(){
   );
 }
 
+// ── Footer ────────────────────────────────────────────────────
+function Footer(){
+  return(
+    <footer style={{
+      background:"var(--surf)",
+      borderTop:"1.5px solid var(--bdr)",
+      padding:"20px 24px",
+      marginTop:"auto",
+      fontSize:12,
+      color:"var(--muted)",
+      lineHeight:1.7,
+      textAlign:"center"
+    }}>
+      <strong style={{color:"var(--txt)"}}>Amazon Affiliate Disclosure:</strong>{" "}
+      Deal Flow Hub is a participant in the Amazon Services LLC Associates Program,
+      an affiliate advertising program designed to provide a means for sites to earn
+      advertising fees by advertising and linking to Amazon.com. As an Amazon Associate,
+      we earn from qualifying purchases at no extra cost to you.
+    </footer>
+  );
+}
+
+// ── RafflePage ────────────────────────────────────────────────
+function RafflePage(){
+  return(
+    <div className="page" style={{maxWidth:720}}>
+      <h1 style={{fontSize:28,fontWeight:800,marginBottom:8}}>🎁 Referral Raffle — Official Rules</h1>
+      <p style={{color:"var(--muted)",marginBottom:28,fontSize:14}}>Last updated: 2025. No purchase necessary.</p>
+
+      {[
+        ["Eligibility","Open to legal residents of the United States who are 18 years of age or older at the time of entry. Void where prohibited by law. Employees of Deal Flow Hub and their immediate family members are not eligible."],
+        ["Sweepstakes Period","Each weekly drawing period runs from Monday 12:00 AM Central Time (CT) through Sunday 11:59 PM CT. Entries do not carry over between weekly periods."],
+        ["How to Enter Without Purchase","To enter without making a purchase or referring anyone, send your full name and email to raffle@dealflowhub.com with the subject line 'Weekly Raffle Entry.' Limit one (1) free entry per person per weekly period."],
+        ["Referral Entries","Share your unique referral link. Each new person who creates a Deal Flow Hub account through your referral link during the current weekly period counts as one (1) entry. Self-referrals are not permitted. Fraudulent entries will be disqualified."],
+        ["Prize","One (1) winner per weekly period receives $20 USD via PayPal or Venmo. No cash equivalent substitution. Prize is non-transferable. Winner is responsible for all applicable taxes."],
+        ["Winner Selection","One winner is randomly selected from all valid entries received during the weekly period. Odds of winning depend on total entries received."],
+        ["Winner Notification","Winners are contacted by email within 24 hours of selection and must respond within 7 calendar days to claim the prize. Unclaimed prizes will result in a new drawing."],
+        ["Privacy","Information collected for this sweepstakes will be used solely to administer the drawing and will not be sold to third parties except as required by law."],
+        ["General Conditions","Deal Flow Hub reserves the right to cancel, suspend, or modify the sweepstakes at any time if fraud, technical failure, or other factors compromise its integrity."],
+        ["Sponsor","Deal Flow Hub, United States. Not affiliated with Amazon, PayPal, Venmo, or any third-party platform referenced on this site."],
+      ].map(([title,text])=>(
+        <div key={title} style={{marginBottom:20,paddingBottom:20,borderBottom:"1px solid var(--bdr)"}}>
+          <h3 style={{fontSize:15,fontWeight:700,marginBottom:6}}>{title}</h3>
+          <p style={{fontSize:14,color:"var(--muted)",lineHeight:1.75}}>{text}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────
 function App(){
   const {path}=useRouter();
@@ -838,13 +990,15 @@ function App(){
     auth:     <AuthPage/>,
     dashboard:<DashPage/>,
     admin:    <AdminDash/>,
+    raffle:   <RafflePage/>,
   };
 
   return(
-    <>
+    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column"}}>
       <Navbar/>
-      {routes[path]||<HomePage/>}
-    </>
+      <div style={{flex:1}}>{routes[path]||<HomePage/>}</div>
+      <Footer/>
+    </div>
   );
 }
 
