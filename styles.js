@@ -308,8 +308,16 @@ function AuthProvider({children}){
     // Avoid repeated attempts for the same user
     const attemptKey=`dfh_ref_attempted_for_user_${userId}`;
     if(localStorage.getItem(attemptKey)) return;
+    // Skip if a referral row already exists for this user
+    const {data:existingRef,error:refCheckErr}=await supabase.from('referrals').select('id').eq('referee_id',userId).maybeSingle();
+    if(refCheckErr){ console.warn('[redeemPendingRef] referral DB check error:',refCheckErr); return; } // keep pending ref on network/server error
+    if(existingRef){
+      localStorage.removeItem("dfh_pending_ref");
+      localStorage.setItem(attemptKey,'1');
+      return;
+    }
     const {data,error}=await supabase.rpc('redeem_referral',{p_ref_code:code});
-    if(error) return; // keep pending ref on network/server error
+    if(error){ console.warn('[redeemPendingRef] RPC error:',error); return; } // keep pending ref on network/server error
     // RPC returns outcome as a string in `data`; `unauthenticated` means no session yet
     if(data==='unauthenticated') return; // keep pending ref; will retry after login
     // Terminal outcomes: clear pending ref and record attempt
