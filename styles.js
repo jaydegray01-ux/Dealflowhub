@@ -296,6 +296,8 @@ function AuthProvider({children}){
   const [authReady,setAuthReady]=useState(false);
   const toast=useToast();
   const safeToast=(msg,type)=>{ if(toast) toast(msg,type); };
+  // Prevent concurrent / duplicate redemption attempts across events
+  const redeemLockRef=useRef(false);
 
   const loadRole=async(userId)=>{
     const {data}=await supabase.from('profiles').select('role').eq('id',userId).single();
@@ -303,27 +305,44 @@ function AuthProvider({children}){
   };
 
   const redeemPendingRef=async(userId)=>{
+    // Guard: skip if another call is already in progress
+    if(redeemLockRef.current) return;
     const code=localStorage.getItem("dfh_pending_ref");
     if(!code) return;
-    // Avoid repeated attempts for the same user
+    // Guard: never retry on subsequent logins for the same user
     const attemptKey=`dfh_ref_attempted_for_user_${userId}`;
     if(localStorage.getItem(attemptKey)) return;
-    // Skip if a referral row already exists for this user
-    const {data:existingRef,error:refCheckErr}=await supabase.from('referrals').select('id').eq('referee_id',userId).maybeSingle();
-    if(refCheckErr){ console.warn('[redeemPendingRef] referral DB check error:',refCheckErr); return; } // keep pending ref on network/server error
-    if(existingRef){
-      localStorage.removeItem("dfh_pending_ref");
-      localStorage.setItem(attemptKey,'1');
-      return;
-    }
-    const {data,error}=await supabase.rpc('redeem_referral',{p_ref_code:code});
-    if(error){ console.warn('[redeemPendingRef] RPC error:',error); return; } // keep pending ref on network/server error
-    // RPC returns outcome as a string in `data`; `unauthenticated` means no session yet
-    if(data==='unauthenticated') return; // keep pending ref; will retry after login
-    // Terminal outcomes: clear pending ref and record attempt
-    localStorage.removeItem("dfh_pending_ref");
+    // Claim the lock and mark the attempt *before* any async work to prevent
+    // race conditions between SIGNED_IN and INITIAL_SESSION firing in quick succession
+    redeemLockRef.current=true;
     localStorage.setItem(attemptKey,'1');
-    if(data==="ok") safeToast("🎁 Referral bonus applied! You've earned a raffle entry.","ok");
+    try {
+      const {data,error}=await supabase.rpc('redeem_referral',{p_ref_code:code});
+      // Always clear the pending code after the first attempt so it never spams
+      localStorage.removeItem("dfh_pending_ref");
+      if(error){
+        console.warn('[redeemPendingRef] RPC error:',error);
+        safeToast("⚠️ Could not apply referral bonus — please contact support.","err");
+        return;
+      }
+      // `data` is the TEXT return value of the SQL function
+      console.log('[redeemPendingRef] RPC result:',data);
+      if(data==='ok'){
+        safeToast("🎁 Referral bonus applied! You've each earned a raffle entry.","ok");
+        window.dispatchEvent(new CustomEvent('dfh:referral-redeemed'));
+      } else if(data==='already_referred'){
+        // Already credited — silently clean up
+      } else if(data==='self_referral'){
+        safeToast("⚠️ Self-referrals are not allowed.","err");
+      } else if(data==='invalid_code'){
+        safeToast("⚠️ Referral code not found.","err");
+      } else {
+        console.warn('[redeemPendingRef] unexpected response:',data);
+        safeToast("⚠️ Referral status unknown — please contact support.","err");
+      }
+    } finally {
+      redeemLockRef.current=false;
+    }
   };
 
   useEffect(()=>{
@@ -338,7 +357,10 @@ function AuthProvider({children}){
       setUser(u);
       if(u){
         loadRole(u.id).catch(()=>{});
-        if(event==='SIGNED_IN') redeemPendingRef(u.id).catch(()=>{});
+        // Handle both SIGNED_IN (manual login / password confirm) and INITIAL_SESSION
+        // (email-confirmation redirect: Supabase processes the URL tokens during client
+        // initialisation and fires INITIAL_SESSION by the time our listener registers)
+        if(event==='SIGNED_IN'||event==='INITIAL_SESSION') redeemPendingRef(u.id).catch(()=>{});
       }
       else setRole(null);
     });
@@ -1562,6 +1584,21 @@ function RafflePage(){
   const [weekCount,setWeekCount]=useState(0);
   const [lifeCount,setLifeCount]=useState(0);
 
+  const fetchCounts=useCallback(()=>{
+    if(!user) return;
+    const now=new Date();
+    const monday=new Date(now);
+    monday.setDate(now.getDate()-((now.getDay()+6)%7));
+    monday.setHours(0,0,0,0);
+    supabase.from('raffle_entries').select('*',{count:'exact',head:true})
+      .eq('user_id',user.id)
+      .gte('created_at',monday.toISOString())
+      .then(({count})=>setWeekCount(count||0));
+    supabase.from('raffle_entries').select('*',{count:'exact',head:true})
+      .eq('user_id',user.id)
+      .then(({count})=>setLifeCount(count||0));
+  },[user?.id]);
+
   useEffect(()=>{
     if(!user) return;
 
@@ -1577,21 +1614,15 @@ function RafflePage(){
         }
       });
 
-    // Fetch current week entry count (week starts Monday)
-    const now=new Date();
-    const monday=new Date(now);
-    monday.setDate(now.getDate()-((now.getDay()+6)%7));
-    monday.setHours(0,0,0,0);
-
-    supabase.from('raffle_entries').select('*',{count:'exact',head:true})
-      .eq('user_id',user.id)
-      .gte('created_at',monday.toISOString())
-      .then(({count})=>setWeekCount(count||0));
-
-    supabase.from('raffle_entries').select('*',{count:'exact',head:true})
-      .eq('user_id',user.id)
-      .then(({count})=>setLifeCount(count||0));
+    fetchCounts();
   },[user?.id]);
+
+  // Refresh counts when a referral is redeemed (may happen on same page load)
+  useEffect(()=>{
+    if(!user) return;
+    window.addEventListener('dfh:referral-redeemed',fetchCounts);
+    return()=>window.removeEventListener('dfh:referral-redeemed',fetchCounts);
+  },[fetchCounts]);
 
   const referralLink=refCode?`${window.location.origin}/#raffle?ref=${refCode}`:null;
 
