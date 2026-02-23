@@ -1,3 +1,5 @@
+import { supabase } from './src/supabase.js'
+
 /* ============================================================
    Deal Flow Hub — single-file React app
    All styles injected via _st; no external CSS file needed.
@@ -122,18 +124,49 @@ const CATS = [
   {id:"adult-products",           label:"Adult Products 🔞",        emoji:"🔞", adult:true },
 ];
 
-let _deals = [
-  {id:"d1", title:"50% off Cloud Hosting",   desc:"Premium VPS at half price.", link:"https://example.com", dealType:"SALE",  code:"",         cat:"electronics",    clicks:42, saved:12, expires:ad(5),  createdAt:sd(2), featured:true,  active:true, voteUp:0, voteDown:0, status:"active", isBulkCvsDeal:false, bulkCvsNotes:""},
-  {id:"d2", title:"Designer T-Shirts Promo", desc:"Use code for 30% off.",       link:"https://example.com", dealType:"PROMO", code:"STYLE30",   cat:"beauty",         clicks:18, saved:7,  expires:ad(10), createdAt:sd(1), featured:false, active:true, voteUp:0, voteDown:0, status:"active", isBulkCvsDeal:false, bulkCvsNotes:""},
-  {id:"d3", title:"Pizza + Promo Bundle",    desc:"Free pizza and promo code.",   link:"https://example.com", dealType:"BOTH",  code:"PIZZA50",   cat:"home-and-kitchen",clicks:99, saved:34, expires:ad(2),  createdAt:sd(0), featured:true,  active:true, voteUp:0, voteDown:0, status:"active", isBulkCvsDeal:false, bulkCvsNotes:""},
-  {id:"d4", title:"Adult Content Deal",      desc:"Exclusive promo.",             link:"https://example.com", dealType:"PROMO", code:"ADULT20",   cat:"adult-products", clicks:5,  saved:2,  expires:ad(7),  createdAt:sd(3), featured:false, active:true, voteUp:0, voteDown:0, status:"active", isBulkCvsDeal:false, bulkCvsNotes:""},
-];
+// ── DB field mapping ──────────────────────────────────────────
+const fromDb = (d) => ({
+  id:               d.id,
+  title:            d.title,
+  description:      d.description || '',
+  link:             d.link,
+  dealType:         d.deal_type,
+  code:             d.code || '',
+  cat:              d.cat,
+  clicks:           d.clicks ?? 0,
+  saved:            d.saved ?? 0,
+  expires:          d.expires,
+  createdAt:        d.created_at,
+  featured:         d.featured ?? false,
+  active:           (d.status || 'ACTIVE') === 'ACTIVE',
+  voteUp:           d.vote_up ?? 0,
+  voteDown:         d.vote_down ?? 0,
+  status:           d.status || 'ACTIVE',
+  isBulkCvsDeal:    d.is_bulk_cvs_deal ?? false,
+  bulkCvsNotes:     d.bulk_cvs_notes || '',
+  imageUrl:         d.image_url || '',
+  stackInstructions:d.stack_instructions || '',
+});
 
-const getDeals = () => [..._deals];
-const getDeal  = (id) => _deals.find(d=>d.id===id)||null;
-const addDeal  = (d)  => { _deals=[{voteUp:0,voteDown:0,status:"active",isBulkCvsDeal:false,bulkCvsNotes:"",...d,id:"d"+Date.now(),clicks:0,saved:0,createdAt:new Date().toISOString()},..._deals]; };
-const updateDeal=(id,patch)=>{ _deals=_deals.map(d=>d.id===id?{...d,...patch}:d); };
-const deleteDeal=(id)=>{ _deals=_deals.filter(d=>d.id!==id); };
+const toDb = (d) => ({
+  title:             d.title,
+  description:       d.description || '',
+  link:              d.link,
+  deal_type:         d.dealType,
+  code:              d.code || '',
+  cat:               d.cat,
+  clicks:            d.clicks ?? 0,
+  saved:             d.saved ?? 0,
+  expires:           d.expires,
+  featured:          d.featured ?? false,
+  vote_up:           d.voteUp ?? 0,
+  vote_down:         d.voteDown ?? 0,
+  status:            d.status || 'ACTIVE',
+  is_bulk_cvs_deal:  d.isBulkCvsDeal ?? false,
+  bulk_cvs_notes:    d.bulkCvsNotes || '',
+  image_url:         d.imageUrl || '',
+  stack_instructions:d.stackInstructions || '',
+});
 
 // ── Vote helpers ──────────────────────────────────────────────
 const DELETE_AFTER_DOWNVOTES = 10;
@@ -261,38 +294,60 @@ function AgeProvider({children}){
 const AuthCtx = createContext(null);
 const useAuth = () => useContext(AuthCtx);
 
-const USERS = [
-  {id:"u1",email:"admin@demo.com", password:"admin123", name:"Admin User",  role:"ADMIN"},
-  {id:"u2",email:"user@demo.com",  password:"user123",  name:"Regular User", role:"USER"},
-];
-
 function AuthProvider({children}){
-  const [user,setUser]=useState(()=>{
-    try{ return JSON.parse(localStorage.getItem("dfh_user")); }catch{ return null; }
-  });
+  const [user,setUser]=useState(null);
+  const [role,setRole]=useState(null);
+  const [authReady,setAuthReady]=useState(false);
+  const toast=useToast();
+  const safeToast=(msg,type)=>{ if(toast) toast(msg,type); };
 
-  // Issue 12 fixed: null guard for toast
-  const toast = useToast();
-  const safeToast = (msg, type) => { if(toast) toast(msg, type); };
+  const loadRole=async(userId)=>{
+    const {data}=await supabase.from('profiles').select('role').eq('id',userId).single();
+    setRole(data?.role||null);
+  };
 
-  const login=(email,password)=>{
-    const found=USERS.find(u=>u.email===email&&u.password===password);
-    if(!found){ safeToast("Invalid credentials","err"); return false; }
-    const u={id:found.id,email:found.email,name:found.name,role:found.role};
-    setUser(u);
-    localStorage.setItem("dfh_user",JSON.stringify(u));
-    safeToast(`Welcome back, ${u.name}!`,"ok");
+  useEffect(()=>{
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const u=session?.user??null;
+      setUser(u);
+      if(u) loadRole(u.id).catch(()=>{}).then(()=>setAuthReady(true));
+      else setAuthReady(true);
+    });
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
+      const u=session?.user??null;
+      setUser(u);
+      if(u) loadRole(u.id).catch(()=>{});
+      else setRole(null);
+    });
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  const login=async(email,password)=>{
+    const {error}=await supabase.auth.signInWithPassword({email,password});
+    if(error){ safeToast(error.message,"err"); return false; }
+    safeToast("Welcome back!","ok");
     return true;
   };
 
-  const logout=()=>{
-    setUser(null);
-    localStorage.removeItem("dfh_user");
+  const signup=async(email,password)=>{
+    const {error}=await supabase.auth.signUp({email,password});
+    if(error){ safeToast(error.message,"err"); return false; }
+    safeToast("Check your email to confirm your account.","info");
+    return true;
+  };
+
+  const logout=async()=>{
+    await supabase.auth.signOut();
+    setRole(null);
     safeToast("Logged out","info");
   };
 
+  const isAdmin=role==="ADMIN";
+
+  if(!authReady) return null;
+
   return(
-    <AuthCtx.Provider value={{user,login,logout,isAdmin:user?.role==="ADMIN"}}>
+    <AuthCtx.Provider value={{user,login,signup,logout,isAdmin}}>
       {children}
     </AuthCtx.Provider>
   );
@@ -408,7 +463,7 @@ function DealCard({deal}){
           {deal.isBulkCvsDeal&&<span className="tag tag-warn">📦 Bulk CVS</span>}
         </div>
         <h3 style={{fontSize:15,marginBottom:6,lineHeight:1.3}}>{deal.title}</h3>
-        <p style={{fontSize:13,color:"var(--muted)",marginBottom:10,lineHeight:1.4}}>{deal.desc}</p>
+        <p style={{fontSize:13,color:"var(--muted)",marginBottom:10,lineHeight:1.4}}>{deal.description}</p>
         <div style={{display:"flex",gap:12,fontSize:12,color:"var(--muted)"}}>
           <span><I n="clock" s={11}/> {tu(deal.expires)}</span>
           <span><I n="eye" s={11}/> {deal.clicks}</span>
@@ -429,7 +484,7 @@ function VoteBar({deal, onVoted, compact=false}){
   const [up,setUp]=useState(deal.voteUp||0);
   const [dn,setDn]=useState(deal.voteDown||0);
 
-  const vote=(type)=>{
+  const vote=async(type)=>{
     const prev=localVote;
     let newUp=up, newDn=dn;
 
@@ -449,10 +504,11 @@ function VoteBar({deal, onVoted, compact=false}){
 
     setUp(newUp);
     setDn(newDn);
-    updateDeal(deal.id,{voteUp:newUp,voteDown:newDn});
+    const {error}=await supabase.from('deals').update({vote_up:newUp,vote_down:newDn}).eq('id',deal.id);
+    if(error){ toast?.("Failed to save vote","err"); return; }
 
     if(newDn>=DELETE_AFTER_DOWNVOTES){
-      updateDeal(deal.id,{status:"flagged"});
+      await supabase.from('deals').update({status:'INACTIVE'}).eq('id',deal.id);
       if(!compact) toast?.(`⚠️ Deal flagged due to ${newDn} downvotes`,"warn");
     }
 
@@ -514,7 +570,14 @@ function RaffleBanner(){
 // ── HomePage ──────────────────────────────────────────────────
 function HomePage(){
   const {nav}=useRouter();
-  const featured=getDeals().filter(d=>d.featured&&d.active).slice(0,4);
+  const [featured,setFeatured]=useState([]);
+
+  useEffect(()=>{
+    supabase.from('deals').select('*')
+      .eq('featured',true).eq('status','ACTIVE')
+      .order('created_at',{ascending:false}).limit(4)
+      .then(({data})=>setFeatured((data||[]).map(fromDb)));
+  },[]);
 
   return(
     <div>
@@ -577,6 +640,12 @@ function DealsPage(){
   const [bulkCvs,setBulkCvs]=useState(!!params.bulkCvs);
   const [q,setQ]=useState(params.q||"");
   const [sideOpen,setSideOpen]=useState(false);
+  const [allDeals,setAllDeals]=useState([]);
+
+  useEffect(()=>{
+    supabase.from('deals').select('*').order('created_at',{ascending:false})
+      .then(({data})=>setAllDeals((data||[]).map(fromDb)));
+  },[]);
 
   // Bug 5 fixed: sync filter state when params change (e.g. navigating from Home → different filter)
   useEffect(()=>{
@@ -597,14 +666,14 @@ function DealsPage(){
   };
 
   const deals=useMemo(()=>{
-    let list=getDeals().filter(d=>d.active);
+    let list=allDeals.filter(d=>d.status==="ACTIVE");
     if(dt)   list=list.filter(d=>d.dealType===dt);
     if(cat)  list=list.filter(d=>d.cat===cat);
     if(stack)list=list.filter(d=>["STACKABLE","BOTH"].includes(d.dealType));
     if(bulkCvs) list=list.filter(d=>d.isBulkCvsDeal);
-    if(q)    list=list.filter(d=>d.title.toLowerCase().includes(q.toLowerCase())||d.desc.toLowerCase().includes(q.toLowerCase()));
+    if(q)    list=list.filter(d=>d.title.toLowerCase().includes(q.toLowerCase())||(d.description||"").toLowerCase().includes(q.toLowerCase()));
     return list;
-  },[dt,cat,stack,bulkCvs,q]);
+  },[allDeals,dt,cat,stack,bulkCvs,q]);
 
   const Sidebar=()=>(
     <div id="deals-sidebar" className={`sidebar card${sideOpen?" open":""}`}>
@@ -685,8 +754,16 @@ function DealPage(){
   const {params,nav}=useRouter();
   const {ageOk,ageReq}=useAge();
   const toast=useToast();
-  const [deal,setDeal]=useState(()=>getDeal(params.id));
+  const [deal,setDeal]=useState(null);
+  const [loading,setLoading]=useState(true);
   const [revealed,setRevealed]=useState(false);
+
+  useEffect(()=>{
+    setLoading(true);
+    setRevealed(false);
+    supabase.from('deals').select('*').eq('id',params.id).single()
+      .then(({data})=>{ setDeal(data?fromDb(data):null); setLoading(false); });
+  },[params.id]);
 
   const cat=CATS.find(c=>c.id===deal?.cat);
 
@@ -695,10 +772,11 @@ function DealPage(){
     if(cat?.adult&&!ageOk) ageReq(()=>{});
   },[deal?.id,ageOk]);
 
-  useEffect(()=>{
-    setDeal(getDeal(params.id));
-    setRevealed(false);
-  },[params.id]);
+  if(loading) return(
+    <div className="page" style={{textAlign:"center",paddingTop:80}}>
+      <p style={{color:"var(--muted)"}}>Loading…</p>
+    </div>
+  );
 
   if(!deal) return(
     <div className="page" style={{textAlign:"center",paddingTop:80}}>
@@ -715,6 +793,11 @@ function DealPage(){
     </div>
   );
 
+  const refreshDeal=()=>{
+    supabase.from('deals').select('*').eq('id',deal.id).single()
+      .then(({data})=>{ if(data) setDeal(fromDb(data)); });
+  };
+
   const copyCode=()=>{
     if(deal.code){
       navigator.clipboard?.writeText(deal.code).catch(()=>{});
@@ -722,25 +805,27 @@ function DealPage(){
     }
   };
 
+  const incrementClicks=async()=>{
+    const newClicks=deal.clicks+1;
+    const {error}=await supabase.from('deals').update({clicks:newClicks}).eq('id',deal.id);
+    if(!error) setDeal(d=>({...d,clicks:newClicks}));
+  };
+
   // Updated mainAction: SALE/STACKABLE → Shop Deal; PROMO/BOTH → Copy Code & Shop
-  const mainAction=()=>{
+  const mainAction=async()=>{
+    await incrementClicks();
     if(deal.dealType==="SALE"||deal.dealType==="STACKABLE"){
-      updateDeal(deal.id,{clicks:deal.clicks+1});
-      setDeal(getDeal(deal.id));
       window.open(deal.link,"_blank","noopener,noreferrer");
     } else {
       // PROMO or BOTH: copy code AND redirect
       copyCode();
       setRevealed(true);
-      updateDeal(deal.id,{clicks:deal.clicks+1});
-      setDeal(getDeal(deal.id));
       window.open(deal.link,"_blank","noopener,noreferrer");
     }
   };
 
-  const goToProduct=()=>{
-    updateDeal(deal.id,{clicks:deal.clicks+1});
-    setDeal(getDeal(deal.id));
+  const goToProduct=async()=>{
+    await incrementClicks();
     window.open(deal.link,"_blank","noopener,noreferrer");
   };
 
@@ -766,7 +851,7 @@ function DealPage(){
           </div>
         )}
 
-        <p style={{color:"var(--muted)",marginBottom:20,lineHeight:1.6}}>{deal.desc}</p>
+        <p style={{color:"var(--muted)",marginBottom:20,lineHeight:1.6}}>{deal.description}</p>
 
         {deal.isBulkCvsDeal&&(
           <div style={{background:"#ffd16622",border:"1.5px solid var(--warn)",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
@@ -776,7 +861,7 @@ function DealPage(){
         )}
 
         <div style={{background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:10,padding:"14px 18px",marginBottom:20}}>
-          <VoteBar deal={deal} onVoted={()=>setDeal(getDeal(deal.id))}/>
+          <VoteBar deal={deal} onVoted={refreshDeal}/>
         </div>
 
         <div style={{display:"flex",gap:16,marginBottom:24,flexWrap:"wrap",fontSize:14,color:"var(--muted)"}}>
@@ -827,31 +912,33 @@ function DealPage(){
 
 // ── AuthPage ──────────────────────────────────────────────────
 function AuthPage(){
-  const {user,login}=useAuth();
+  const {user,login,signup,isAdmin}=useAuth();
   const {nav}=useRouter();
   const [email,setEmail]=useState("");
   const [pass,setPass]=useState("");
+  const [mode,setMode]=useState("login");
   const [loading,setLoading]=useState(false);
 
-  // Issue 11 fixed: return null immediately if already logged in (no flicker)
-  // instead of using useEffect which causes a render-then-navigate flicker
-  if(user){ nav(user.role==="ADMIN"?"admin":"dashboard"); return null; }
+  useEffect(()=>{
+    if(user) nav(isAdmin?"admin":"dashboard");
+  },[user,isAdmin]);
+
+  if(user) return null;
 
   const submit=async(e)=>{
     e.preventDefault();
     setLoading(true);
-    await new Promise(r=>setTimeout(r,400));
-    const ok=login(email,pass);
+    mode==="signup"?await signup(email,pass):await login(email,pass);
     setLoading(false);
-    if(ok) nav(email.startsWith("admin")?"admin":"dashboard");
+    // Navigation handled by useEffect watching user + isAdmin
   };
 
   return(
     <div className="page" style={{display:"flex",justifyContent:"center",paddingTop:60}}>
       <div className="card" style={{width:"100%",maxWidth:400}}>
-        <h2 style={{marginBottom:4,textAlign:"center"}}><I n="user" s={20}/> Sign In</h2>
+        <h2 style={{marginBottom:4,textAlign:"center"}}><I n="user" s={20}/> {mode==="signup"?"Create Account":"Sign In"}</h2>
         <p style={{textAlign:"center",color:"var(--muted)",fontSize:13,marginBottom:24}}>
-          Demo: user@demo.com / user123 · admin@demo.com / admin123
+          {mode==="signup"?"Join Deal Flow Hub to save and share deals.":"Welcome back! Sign in to your account."}
         </p>
         <form onSubmit={submit}>
           <div style={{marginBottom:14}}>
@@ -863,9 +950,16 @@ function AuthPage(){
             <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" required/>
           </div>
           <button className="btn btn-p" type="submit" disabled={loading} style={{width:"100%",justifyContent:"center",padding:"12px"}}>
-            {loading?"Signing in…":<><I n="login" s={14}/> Sign In</>}
+            {loading?(mode==="signup"?"Creating account…":"Signing in…"):(mode==="signup"?<><I n="user" s={14}/> Create Account</>:<><I n="login" s={14}/> Sign In</>)}
           </button>
         </form>
+        <div style={{marginTop:16,textAlign:"center",fontSize:13,color:"var(--muted)"}}>
+          {mode==="login"?(
+            <>Don&apos;t have an account? <span style={{color:"var(--p)",cursor:"pointer"}} onClick={()=>setMode("signup")}>Sign up</span></>
+          ):(
+            <>Already have an account? <span style={{color:"var(--p)",cursor:"pointer"}} onClick={()=>setMode("login")}>Sign in</span></>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -877,7 +971,7 @@ function DashPage(){
   return(
     <Guard>
       <div className="page">
-        <h1 style={{marginBottom:8}}>Welcome, {user?.name}</h1>
+        <h1 style={{marginBottom:8}}>Welcome, {user?.email}</h1>
         <p style={{color:"var(--muted)"}}>Your saved deals and preferences will appear here.</p>
       </div>
     </Guard>
@@ -888,8 +982,8 @@ function DashPage(){
 function DealForm({initial,onSave,onCancel}){
   const toast=useToast();
   const [s,setS]=useState(initial||{
-    title:"",desc:"",link:"https://",dealType:"SALE",code:"",
-    cat:"electronics",expires:ad(7).slice(0,10),featured:false,active:true,
+    title:"",description:"",link:"https://",dealType:"SALE",code:"",
+    cat:"electronics",expires:ad(7).slice(0,10),featured:false,status:"ACTIVE",
     imageUrl:"", stackInstructions:"", isBulkCvsDeal:false, bulkCvsNotes:"",
   });
 
@@ -928,7 +1022,7 @@ function DealForm({initial,onSave,onCancel}){
       </div>
       <div>
         <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Description</label>
-        <textarea value={s.desc} onChange={e=>set("desc",e.target.value)} rows={2} placeholder="Brief description"/>
+        <textarea value={s.description} onChange={e=>set("description",e.target.value)} rows={2} placeholder="Brief description"/>
       </div>
       <div>
         <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Product Image URL</label>
@@ -972,15 +1066,18 @@ function DealForm({initial,onSave,onCancel}){
           <input type="date" value={s.expires?.slice(0,10)} onChange={e=>set("expires",e.target.value)}/>
         </div>
       </div>
-      <div style={{display:"flex",gap:16}}>
+      <div style={{display:"flex",gap:16,alignItems:"center"}}>
         <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:14}}>
           <input type="checkbox" checked={s.featured} onChange={e=>set("featured",e.target.checked)} style={{width:"auto"}}/>
           Featured
         </label>
-        <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:14}}>
-          <input type="checkbox" checked={s.active} onChange={e=>set("active",e.target.checked)} style={{width:"auto"}}/>
-          Active
-        </label>
+        <div style={{display:"flex",alignItems:"center",gap:6,fontSize:14}}>
+          <label style={{color:"var(--muted)"}}>Status</label>
+          <select value={s.status||"ACTIVE"} onChange={e=>set("status",e.target.value)} style={{width:"auto",padding:"4px 10px",fontSize:13}}>
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="INACTIVE">INACTIVE</option>
+          </select>
+        </div>
       </div>
       <div style={{background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:8,padding:"12px 14px"}}>
         <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:8}}>
@@ -1006,25 +1103,54 @@ function DealForm({initial,onSave,onCancel}){
 function AdminDash(){
   const toast=useToast();
   const {nav}=useRouter();
-  const [deals,setDeals]=useState(getDeals);
+  const [deals,setDeals]=useState([]);
   const [editing,setEditing]=useState(null);
   const [adding,setAdding]=useState(false);
   const [adminSection,setAdminSection]=useState("deals");
   const [methods,setMethods]=useState(getMethods);
   const [dealFilter,setDealFilter]=useState("all");
 
-  const refresh=()=>setDeals(getDeals());
+  const refresh=async()=>{
+    const {data}=await supabase.from('deals').select('*').order('created_at',{ascending:false});
+    setDeals((data||[]).map(fromDb));
+  };
   const refreshMethods=()=>setMethods(getMethods());
 
+  useEffect(()=>{ refresh(); },[]);
+
+  const handleAdd=async(d)=>{
+    const {error}=await supabase.from('deals').insert([toDb(d)]);
+    if(error){ toast?.(error.message,"err"); return; }
+    await refresh(); setAdding(false); toast?.("Deal added","ok");
+  };
+
+  const handleEdit=async(d)=>{
+    const {error}=await supabase.from('deals').update(toDb(d)).eq('id',editing.id);
+    if(error){ toast?.(error.message,"err"); return; }
+    await refresh(); setEditing(null); toast?.("Deal updated","ok");
+  };
+
+  const handleDelete=async(id)=>{
+    const {error}=await supabase.from('deals').delete().eq('id',id);
+    if(error){ toast?.(error.message,"err"); return; }
+    await refresh(); toast?.("Deal deleted","info");
+  };
+
+  const handleStatusChange=async(id,newStatus)=>{
+    const {error}=await supabase.from('deals').update({status:newStatus}).eq('id',id);
+    if(error){ toast?.(error.message,"err"); return; }
+    await refresh();
+  };
+
   const stats=[
-    {l:"Total Deals",  v:deals.length,                          ic:"deals", c:"var(--p)"},
-    {l:"Active",       v:deals.filter(d=>d.active).length,      ic:"check", c:"var(--ok)"},
-    {l:"Total Clicks", v:deals.reduce((a,d)=>a+d.clicks,0),     ic:"eye",   c:"var(--warn)"},
-    {l:"Featured",     v:deals.filter(d=>d.featured).length,    ic:"star",  c:"var(--p2)"},
+    {l:"Total Deals",  v:deals.length,                                ic:"deals", c:"var(--p)"},
+    {l:"Active",       v:deals.filter(d=>d.status==="ACTIVE").length, ic:"check", c:"var(--ok)"},
+    {l:"Total Clicks", v:deals.reduce((a,d)=>a+d.clicks,0),          ic:"eye",   c:"var(--warn)"},
+    {l:"Featured",     v:deals.filter(d=>d.featured).length,          ic:"star",  c:"var(--p2)"},
   ];
 
-  const displayedDeals = dealFilter==="flagged"
-    ? deals.filter(d=>d.status==="flagged")
+  const displayedDeals = dealFilter==="inactive"
+    ? deals.filter(d=>d.status==="INACTIVE")
     : deals;
 
   return(
@@ -1063,7 +1189,7 @@ function AdminDash(){
               <div className="card" style={{marginBottom:24}}>
                 <h3 style={{marginBottom:16}}>Add New Deal</h3>
                 <DealForm
-                  onSave={d=>{ addDeal(d); refresh(); setAdding(false); toast?.("Deal added","ok"); }}
+                  onSave={handleAdd}
                   onCancel={()=>setAdding(false)}
                 />
               </div>
@@ -1075,7 +1201,7 @@ function AdminDash(){
                   <h3 style={{marginBottom:16}}>Edit Deal</h3>
                   <DealForm
                     initial={editing}
-                    onSave={d=>{ updateDeal(editing.id,d); refresh(); setEditing(null); toast?.("Deal updated","ok"); }}
+                    onSave={handleEdit}
                     onCancel={()=>setEditing(null)}
                   />
                 </div>
@@ -1084,13 +1210,13 @@ function AdminDash(){
 
             <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
               <span style={{fontSize:13,color:"var(--muted)"}}>Filter:</span>
-              {[["all","All Deals"],["flagged","⚠️ Flagged"]].map(([v,l])=>(
+              {[["all","All Deals"],["inactive","⛔ Inactive"]].map(([v,l])=>(
                 <button key={v} className={`btn ${dealFilter===v?"btn-p":"btn-d"}`} style={{padding:"5px 12px",fontSize:13}}
                   onClick={()=>setDealFilter(v)}>{l}</button>
               ))}
-              {deals.filter(d=>d.status==="flagged").length>0&&(
+              {deals.filter(d=>d.status==="INACTIVE").length>0&&(
                 <span className="tag tag-err" style={{fontSize:12}}>
-                  {deals.filter(d=>d.status==="flagged").length} flagged
+                  {deals.filter(d=>d.status==="INACTIVE").length} inactive
                 </span>
               )}
             </div>
@@ -1099,7 +1225,7 @@ function AdminDash(){
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}>
                 <thead>
                   <tr style={{borderBottom:"1.5px solid var(--bdr)",color:"var(--muted)",fontSize:12}}>
-                    {["Title","Type","Cat","Clicks","Expires","Active","CVS",""].map(h=>(
+                    {["Title","Type","Cat","Clicks","Expires","Status","CVS",""].map(h=>(
                       <th key={h} style={{padding:"8px 12px",textAlign:"left",fontWeight:600}}>{h}</th>
                     ))}
                   </tr>
@@ -1109,16 +1235,20 @@ function AdminDash(){
                     <tr key={d.id} style={{borderBottom:"1px solid var(--bdr)"}}>
                       <td style={{padding:"10px 12px",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                         {d.title}
-                        {d.status==="flagged"&&(
-                          <span className="tag tag-err" style={{fontSize:10,marginLeft:6}}>⚠️ Flagged</span>
-                        )}
                       </td>
                       <td style={{padding:"10px 12px"}}><span className={`tag ${d.dealType==="SALE"?"tag-ok":d.dealType==="PROMO"?"tag-p":"tag-warn"}`}>{d.dealType}</span></td>
                       <td style={{padding:"10px 12px",color:"var(--muted)"}}>{d.cat}</td>
                       <td style={{padding:"10px 12px"}}>{d.clicks}</td>
                       <td style={{padding:"10px 12px",color:"var(--muted)",fontSize:12}}>{fmtDate(d.expires)}</td>
                       <td style={{padding:"10px 12px"}}>
-                        <input type="checkbox" checked={d.active} onChange={e=>{ updateDeal(d.id,{active:e.target.checked}); refresh(); }} style={{width:"auto"}}/>
+                        <select
+                          value={d.status||"ACTIVE"}
+                          onChange={e=>handleStatusChange(d.id,e.target.value)}
+                          style={{width:"auto",padding:"3px 8px",fontSize:12,background:"var(--surf2)",color:"var(--txt)",border:"1.5px solid var(--bdr)",borderRadius:6}}
+                        >
+                          <option value="ACTIVE">ACTIVE</option>
+                          <option value="INACTIVE">INACTIVE</option>
+                        </select>
                       </td>
                       <td style={{padding:"10px 12px"}}>
                         {d.isBulkCvsDeal&&<span className="tag tag-warn" style={{fontSize:11}}>📦 CVS</span>}
@@ -1128,13 +1258,7 @@ function AdminDash(){
                           <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12}} onClick={()=>setEditing(d)}>
                             <I n="edit" s={12}/>
                           </button>
-                          {d.status==="flagged"&&(
-                            <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12,color:"var(--warn)"}}
-                              onClick={()=>{ updateDeal(d.id,{status:"active"}); refresh(); toast?.("Deal unflagged","ok"); }}>
-                              ✅ Unflag
-                            </button>
-                          )}
-                          <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12,color:"var(--err)"}} onClick={()=>{ deleteDeal(d.id); refresh(); toast?.("Deal deleted","info"); }}>
+                          <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12,color:"var(--err)"}} onClick={()=>handleDelete(d.id)}>
                             <I n="trash" s={12}/>
                           </button>
                         </div>
