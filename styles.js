@@ -496,13 +496,15 @@ function Navbar(){
 const DT_LABEL = {SALE:"On Sale 💸", PROMO:"Promo Code 🎟️", BOTH:"Sale + Code 🏷️", STACKABLE:"Stackable 💰"};
 function DealCard({deal}){
   const {nav}=useRouter();
+  const [imgErr,setImgErr]=useState(false);
   const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
+  const fallbackEmoji=deal.dealType==="SALE"?"💸":deal.dealType==="PROMO"?"🎫":"🎁";
   return(
     <div className="deal-card" onClick={()=>nav("deal",{id:deal.id})}>
       <div className="deal-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,overflow:"hidden"}}>
-        {deal.imageUrl
-          ?<img src={deal.imageUrl} alt={deal.title} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-          :(deal.dealType==="SALE"?"💸":deal.dealType==="PROMO"?"🎫":"🎁")
+        {deal.imageUrl&&!imgErr
+          ?<img src={deal.imageUrl} alt={deal.title} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setImgErr(true)}/>
+          :fallbackEmoji
         }
       </div>
       <div className="deal-body">
@@ -798,10 +800,12 @@ function DealPage(){
   const [deal,setDeal]=useState(null);
   const [loading,setLoading]=useState(true);
   const [revealed,setRevealed]=useState(false);
+  const [imgErr,setImgErr]=useState(false);
 
   useEffect(()=>{
     setLoading(true);
     setRevealed(false);
+    setImgErr(false);
     supabase.from('deals').select('*').eq('id',params.id).single()
       .then(({data})=>{ setDeal(data?fromDb(data):null); setLoading(false); });
   },[params.id]);
@@ -885,9 +889,9 @@ function DealPage(){
         </div>
         <h1 style={{fontSize:24,marginBottom:10}}>{deal.title}</h1>
 
-        {deal.imageUrl&&(
+        {deal.imageUrl&&!imgErr&&(
           <div style={{borderRadius:12,overflow:"hidden",marginBottom:20}}>
-            <img src={deal.imageUrl} alt={deal.title} style={{width:"100%",maxHeight:340,objectFit:"cover"}}/>
+            <img src={deal.imageUrl} alt={deal.title} style={{width:"100%",maxHeight:340,objectFit:"cover"}} onError={()=>setImgErr(true)}/>
           </div>
         )}
 
