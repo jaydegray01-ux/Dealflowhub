@@ -321,7 +321,7 @@ function AuthProvider({children}){
     const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
       const u=session?.user??null;
       setUser(u);
-      if(u){ loadRole(u.id).catch(()=>{}); redeemPendingRef(); }
+      if(u){ loadRole(u.id).catch(()=>{}); }
       else setRole(null);
     });
     return()=>subscription.unsubscribe();
@@ -338,6 +338,7 @@ function AuthProvider({children}){
     const {error}=await supabase.auth.signUp({email,password});
     if(error){ safeToast(error.message,"err"); return false; }
     safeToast("Check your email to confirm your account.","info");
+    await redeemPendingRef().catch(()=>{});
     return true;
   };
 
