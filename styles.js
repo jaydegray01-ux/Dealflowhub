@@ -306,6 +306,15 @@ function AuthProvider({children}){
     setRole(data?.role||null);
   };
 
+  const redeemPendingRef=async()=>{
+    const code=localStorage.getItem("dfh_pending_ref");
+    if(!code) return;
+    const {data,error}=await supabase.rpc('redeem_referral',{p_ref_code:code});
+    localStorage.removeItem("dfh_pending_ref");
+    if(error) return;
+    if(data==="ok") safeToast("🎁 Referral bonus applied! You've earned a raffle entry.","ok");
+  };
+
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{
       const u=session?.user??null;
@@ -316,7 +325,7 @@ function AuthProvider({children}){
     const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
       const u=session?.user??null;
       setUser(u);
-      if(u) loadRole(u.id).catch(()=>{});
+      if(u){ loadRole(u.id).catch(()=>{}); redeemPendingRef(); }
       else setRole(null);
     });
     return()=>subscription.unsubscribe();
@@ -367,6 +376,8 @@ function RouterProvider({children}){
       const q=Object.fromEntries(new URLSearchParams(rest.join("?")));
       setPath(p);
       setParams(q);
+      // Store pending referral code from URL
+      if(q.ref) localStorage.setItem("dfh_pending_ref",q.ref);
     };
     window.addEventListener("hashchange",onHash);
     onHash();
@@ -556,7 +567,7 @@ function RaffleBanner(){
         <div style={{background:"rgba(0,0,0,.35)",borderRadius:10,padding:"16px 20px",marginTop:10,textAlign:"left",maxWidth:680,margin:"10px auto 0",fontSize:13,lineHeight:1.75}}>
           <p><strong>Who can enter:</strong> Open to US residents 18 years of age or older.</p>
           <p><strong>No purchase necessary</strong> to enter or win.</p>
-          <p><strong>How to enter:</strong> Refer a friend or family member who creates a new Deal Flow Hub account using your referral link. Each qualifying referral counts as one entry.</p>
+          <p><strong>How to enter:</strong> Share your unique referral link from the Raffle page. When someone signs up using your link, you both get +1 raffle entry for the current week.</p>
           <p><strong>Winner selection:</strong> One winner is randomly selected every Sunday at 11:59 PM CT from all valid entries for that week.</p>
           <p><strong>How winner is contacted:</strong> By email within 24 hours of the drawing. Winner must respond within 7 days to claim the $20 prize (via PayPal or Venmo).</p>
           <p><strong>Void where prohibited by law.</strong></p>
@@ -1560,16 +1571,100 @@ function Footer(){
 
 // ── RafflePage ────────────────────────────────────────────────
 function RafflePage(){
+  const {user}=useAuth();
+  const {nav}=useRouter();
+  const toast=useToast();
+  const [refCode,setRefCode]=useState(null);
+  const [weekCount,setWeekCount]=useState(0);
+  const [lifeCount,setLifeCount]=useState(0);
+
+  useEffect(()=>{
+    if(!user) return;
+
+    // Fetch or generate ref_code
+    supabase.from('profiles').select('ref_code').eq('id',user.id).single()
+      .then(async({data})=>{
+        if(data?.ref_code){
+          setRefCode(data.ref_code);
+        } else {
+          const code=(crypto.randomUUID().replace(/-/g,"").slice(0,8)).toUpperCase();
+          const {error}=await supabase.from('profiles').update({ref_code:code}).eq('id',user.id);
+          if(!error) setRefCode(code);
+        }
+      });
+
+    // Fetch current week entry count (week starts Monday)
+    const now=new Date();
+    const monday=new Date(now);
+    monday.setDate(now.getDate()-((now.getDay()+6)%7));
+    monday.setHours(0,0,0,0);
+
+    supabase.from('raffle_entries').select('*',{count:'exact',head:true})
+      .eq('user_id',user.id)
+      .gte('created_at',monday.toISOString())
+      .then(({count})=>setWeekCount(count||0));
+
+    supabase.from('raffle_entries').select('*',{count:'exact',head:true})
+      .eq('user_id',user.id)
+      .then(({count})=>setLifeCount(count||0));
+  },[user?.id]);
+
+  const referralLink=refCode?`${window.location.origin}/#raffle?ref=${refCode}`:null;
+
+  const copyLink=()=>{
+    if(!referralLink) return;
+    navigator.clipboard?.writeText(referralLink)
+      .then(()=>toast?.("Referral link copied! Share it to earn entries.","ok"))
+      .catch(()=>toast?.("Could not copy — please copy the link manually.","err"));
+  };
+
   return(
     <div className="page" style={{maxWidth:720}}>
+
+      {/* Referral link section */}
+      {user?(
+        <div className="card" style={{marginBottom:28,padding:20}}>
+          <h2 style={{fontSize:18,fontWeight:700,marginBottom:6}}>🔗 Your Referral Link</h2>
+          <p style={{fontSize:13,color:"var(--muted)",marginBottom:14,lineHeight:1.6}}>
+            Share this link. When someone creates a new Deal Flow Hub account using it,
+            <strong style={{color:"var(--txt)"}}> you both get +1 raffle entry</strong> for the current week.
+          </p>
+          {referralLink?(
+            <>
+              <div style={{display:"flex",gap:8,alignItems:"center",background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:10,padding:"10px 14px",marginBottom:14,flexWrap:"wrap"}}>
+                <span style={{flex:1,fontSize:13,wordBreak:"break-all",color:"var(--p)"}}>{referralLink}</span>
+                <button className="btn btn-p" style={{padding:"7px 16px",flexShrink:0}} onClick={copyLink}>
+                  <I n="copy" s={13}/> Copy Link
+                </button>
+              </div>
+              <div style={{display:"flex",gap:20,fontSize:13,color:"var(--muted)",flexWrap:"wrap"}}>
+                <span>📅 This week: <strong style={{color:"var(--txt)"}}>{weekCount} {weekCount===1?"entry":"entries"}</strong></span>
+                <span>⭐ Lifetime: <strong style={{color:"var(--txt)"}}>{lifeCount} {lifeCount===1?"entry":"entries"}</strong></span>
+              </div>
+            </>
+          ):(
+            <p style={{color:"var(--muted)",fontSize:13}}>Loading your referral link…</p>
+          )}
+        </div>
+      ):(
+        <div className="card" style={{marginBottom:28,padding:20,textAlign:"center"}}>
+          <p style={{color:"var(--muted)",marginBottom:14,fontSize:14}}>
+            Sign in to get your personal referral link and track your raffle entries.
+          </p>
+          <button className="btn btn-p" onClick={()=>nav("auth")}>
+            <I n="login" s={14}/> Sign In / Sign Up
+          </button>
+        </div>
+      )}
+
       <h1 style={{fontSize:28,fontWeight:800,marginBottom:8}}>🎁 Referral Raffle — Official Rules</h1>
       <p style={{color:"var(--muted)",marginBottom:28,fontSize:14}}>Last updated: 2025. No purchase necessary.</p>
 
       {[
         ["Eligibility","Open to legal residents of the United States who are 18 years of age or older at the time of entry. Void where prohibited by law. Employees of Deal Flow Hub and their immediate family members are not eligible."],
         ["Sweepstakes Period","Each weekly drawing period runs from Monday 12:00 AM Central Time (CT) through Sunday 11:59 PM CT. Entries do not carry over between weekly periods."],
-        ["How to Enter Without Purchase","To enter without making a purchase or referring anyone, send your full name and email to raffle@dealflowhub.com with the subject line 'Weekly Raffle Entry.' Limit one (1) free entry per person per weekly period."],
-        ["Referral Entries","Share your unique referral link. Each new person who creates a Deal Flow Hub account through your referral link during the current weekly period counts as one (1) entry. Self-referrals are not permitted. Fraudulent entries will be disqualified."],
+        ["How to Enter Without Purchase","To enter without referring anyone, send your full name and email to raffle@dealflowhub.com with the subject line 'Weekly Raffle Entry.' Limit one (1) free entry per person per weekly period."],
+        ["Referral Entries","Share your unique referral link from this page. When a new user creates a Deal Flow Hub account using your link, both you and the new user each receive one (1) raffle entry for the current weekly period. Self-referrals are not permitted. Each person may only be referred once. Fraudulent entries will be disqualified."],
         ["Prize","One (1) winner per weekly period receives $20 USD via PayPal or Venmo. No cash equivalent substitution. Prize is non-transferable. Winner is responsible for all applicable taxes."],
         ["Winner Selection","One winner is randomly selected from all valid entries received during the weekly period. Odds of winning depend on total entries received."],
         ["Winner Notification","Winners are contacted by email within 24 hours of selection and must respond within 7 calendar days to claim the prize. Unclaimed prizes will result in a new drawing."],
