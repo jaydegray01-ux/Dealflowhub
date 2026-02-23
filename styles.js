@@ -302,12 +302,19 @@ function AuthProvider({children}){
     setRole(data?.role||null);
   };
 
-  const redeemPendingRef=async()=>{
+  const redeemPendingRef=async(userId)=>{
     const code=localStorage.getItem("dfh_pending_ref");
     if(!code) return;
+    // Avoid repeated attempts for the same user
+    const attemptKey=`dfh_ref_attempted_for_user_${userId}`;
+    if(localStorage.getItem(attemptKey)) return;
     const {data,error}=await supabase.rpc('redeem_referral',{p_ref_code:code});
+    if(error) return; // keep pending ref on network/server error
+    // RPC returns outcome as a string in `data`; `unauthenticated` means no session yet
+    if(data==='unauthenticated') return; // keep pending ref; will retry after login
+    // Terminal outcomes: clear pending ref and record attempt
     localStorage.removeItem("dfh_pending_ref");
-    if(error) return;
+    localStorage.setItem(attemptKey,'1');
     if(data==="ok") safeToast("🎁 Referral bonus applied! You've earned a raffle entry.","ok");
   };
 
@@ -318,10 +325,13 @@ function AuthProvider({children}){
       if(u) loadRole(u.id).catch(()=>{}).then(()=>setAuthReady(true));
       else setAuthReady(true);
     });
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
       const u=session?.user??null;
       setUser(u);
-      if(u){ loadRole(u.id).catch(()=>{}); }
+      if(u){
+        loadRole(u.id).catch(()=>{});
+        if(event==='SIGNED_IN') redeemPendingRef(u.id).catch(()=>{});
+      }
       else setRole(null);
     });
     return()=>subscription.unsubscribe();
@@ -337,8 +347,13 @@ function AuthProvider({children}){
   const signup=async(email,password)=>{
     const {error}=await supabase.auth.signUp({email,password});
     if(error){ safeToast(error.message,"err"); return false; }
-    safeToast("Check your email to confirm your account.","info");
-    await redeemPendingRef().catch(()=>{});
+    const hasPendingRef=!!localStorage.getItem("dfh_pending_ref");
+    safeToast(
+      hasPendingRef
+        ? "Check your email to confirm your account. Your referral bonus will be applied after you confirm and log in."
+        : "Check your email to confirm your account.",
+      "info"
+    );
     return true;
   };
 
@@ -563,7 +578,7 @@ function RaffleBanner(){
         <div style={{background:"rgba(0,0,0,.35)",borderRadius:10,padding:"16px 20px",marginTop:10,textAlign:"left",maxWidth:680,margin:"10px auto 0",fontSize:13,lineHeight:1.75}}>
           <p><strong>Who can enter:</strong> Open to US residents 18 years of age or older.</p>
           <p><strong>No purchase necessary</strong> to enter or win.</p>
-          <p><strong>How to enter:</strong> Share your unique referral link from the Raffle page. When someone signs up using your link, you both get +1 raffle entry for the current week.</p>
+          <p><strong>How to enter:</strong> Share your unique referral link from the Raffle page. When someone signs up using your link, confirms their email, and logs in, you both get +1 raffle entry for the current week.</p>
           <p><strong>Winner selection:</strong> One winner is randomly selected every Sunday at 11:59 PM CT from all valid entries for that week.</p>
           <p><strong>How winner is contacted:</strong> By email within 24 hours of the drawing. Winner must respond within 7 days to claim the $20 prize (via PayPal or Venmo).</p>
           <p><strong>Void where prohibited by law.</strong></p>
@@ -1587,7 +1602,7 @@ function RafflePage(){
         <div className="card" style={{marginBottom:28,padding:20}}>
           <h2 style={{fontSize:18,fontWeight:700,marginBottom:6}}>🔗 Your Referral Link</h2>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:14,lineHeight:1.6}}>
-            Share this link. When someone creates a new Deal Flow Hub account using it,
+            Share this link. When someone signs up using your link, confirms their email, and logs in,
             <strong style={{color:"var(--txt)"}}> you both get +1 raffle entry</strong> for the current week.
           </p>
           {referralLink?(
@@ -1625,7 +1640,7 @@ function RafflePage(){
         ["Eligibility","Open to legal residents of the United States who are 18 years of age or older at the time of entry. Void where prohibited by law. Employees of Deal Flow Hub and their immediate family members are not eligible."],
         ["Sweepstakes Period","Each weekly drawing period runs from Monday 12:00 AM Central Time (CT) through Sunday 11:59 PM CT. Entries do not carry over between weekly periods."],
         ["How to Enter Without Purchase","To enter without referring anyone, send your full name and email to raffle@dealflowhub.com with the subject line 'Weekly Raffle Entry.' Limit one (1) free entry per person per weekly period."],
-        ["Referral Entries","Share your unique referral link from this page. When a new user creates a Deal Flow Hub account using your link, both you and the new user each receive one (1) raffle entry for the current weekly period. Self-referrals are not permitted. Each person may only be referred once. Fraudulent entries will be disqualified."],
+        ["Referral Entries","Share your unique referral link from this page. When a new user signs up via your link, confirms their email, and logs in for the first time, both you and the new user each receive one (1) raffle entry for the current weekly period. The bonus is applied automatically on the referee's first login after email confirmation. Self-referrals are not permitted. Each person may only be referred once. Fraudulent entries will be disqualified."],
         ["Prize","One (1) winner per weekly period receives $20 USD via PayPal or Venmo. No cash equivalent substitution. Prize is non-transferable. Winner is responsible for all applicable taxes."],
         ["Winner Selection","One winner is randomly selected from all valid entries received during the weekly period. Odds of winning depend on total entries received."],
         ["Winner Notification","Winners are contacted by email within 24 hours of selection and must respond within 7 calendar days to claim the prize. Unclaimed prizes will result in a new drawing."],
