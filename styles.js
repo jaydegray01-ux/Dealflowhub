@@ -501,9 +501,25 @@ function Navbar(){
 const DT_LABEL = {SALE:"On Sale 💸", PROMO:"Promo Code 🎟️", BOTH:"Sale + Code 🏷️", STACKABLE:"Stackable 💰"};
 function DealCard({deal}){
   const {nav}=useRouter();
+  const toast=useToast();
   const [imgErr,setImgErr]=useState(false);
   const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
   const fallbackEmoji=deal.dealType==="SALE"?"💸":deal.dealType==="PROMO"?"🎫":"🎁";
+
+  const handleShop=(e)=>{
+    e.stopPropagation();
+    if(deal.link) window.open(deal.link,"_blank","noopener,noreferrer");
+  };
+
+  const handleCopyCode=(e)=>{
+    e.stopPropagation();
+    if(deal.code){
+      navigator.clipboard?.writeText(deal.code)
+        .then(()=>toast?.(`Code copied: ${deal.code}`,"ok"))
+        .catch(()=>toast?.("Failed to copy code. Please copy manually.","err"));
+    }
+  };
+
   return(
     <div className="deal-card" onClick={()=>nav("deal",{id:deal.id})}>
       <div className="deal-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,overflow:"hidden"}}>
@@ -531,6 +547,27 @@ function DealCard({deal}){
         </div>
         <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--bdr)"}}>
           <VoteBar deal={deal} compact={true}/>
+        </div>
+        <div style={{marginTop:10,display:"flex",gap:8}}>
+          {(deal.dealType==="SALE"||deal.dealType==="STACKABLE")&&deal.link&&(
+            <button className="btn btn-p" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={handleShop}>
+              <I n="link" s={12}/> Shop Deal
+            </button>
+          )}
+          {(deal.dealType==="PROMO"||deal.dealType==="BOTH")&&(
+            <>
+              {deal.code&&(
+                <button className="btn btn-o" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={handleCopyCode}>
+                  <I n="copy" s={12}/> Copy Code
+                </button>
+              )}
+              {deal.link&&(
+                <button className="btn btn-p" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={handleShop}>
+                  <I n="link" s={12}/> Go to Site
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -861,22 +898,22 @@ function DealPage(){
     if(!error) setDeal(d=>({...d,clicks:newClicks}));
   };
 
-  // Updated mainAction: SALE/STACKABLE → Shop Deal; PROMO/BOTH → Copy Code & Shop
-  const mainAction=async()=>{
-    await incrementClicks();
+  // mainAction: open link synchronously (before async work) to avoid popup blocking
+  const mainAction=()=>{
     if(deal.dealType==="SALE"||deal.dealType==="STACKABLE"){
-      window.open(deal.link,"_blank","noopener,noreferrer");
+      if(deal.link) window.open(deal.link,"_blank","noopener,noreferrer");
     } else {
-      // PROMO or BOTH: copy code AND redirect
+      // PROMO or BOTH: copy code AND open link
       copyCode();
       setRevealed(true);
-      window.open(deal.link,"_blank","noopener,noreferrer");
+      if(deal.link) window.open(deal.link,"_blank","noopener,noreferrer");
     }
+    incrementClicks();
   };
 
-  const goToProduct=async()=>{
-    await incrementClicks();
-    window.open(deal.link,"_blank","noopener,noreferrer");
+  const goToProduct=()=>{
+    if(deal.link) window.open(deal.link,"_blank","noopener,noreferrer");
+    incrementClicks();
   };
 
   const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
