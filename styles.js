@@ -525,7 +525,7 @@ function DealCard({deal}){
     <div className="deal-card" onClick={()=>nav("deal",{id:deal.id})}>
       <div className="deal-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,overflow:"hidden"}}>
         {deal.imageUrl&&!imgErr
-          ?<img src={deal.imageUrl} alt={deal.title} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setImgErr(true)}/>
+          ?<img src={deal.imageUrl} alt={deal.title} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",alignSelf:"stretch"}} onError={()=>setImgErr(true)}/>
           :fallbackEmoji
         }
       </div>
