@@ -24,5 +24,6 @@ supabase db push
 |------|---------|
 | `001_referral_system.sql` | Adds `ref_code` to profiles, creates `referrals` and `raffle_entries` tables, and the `redeem_referral` RPC. |
 | `002_deals_table.sql` | Creates the `deals` table with the `category` column and handles migration from the legacy `cat` column name. Run this to fix deal-saving errors in the admin dashboard. |
+| `003_categories_table.sql` | Creates the `categories` table, removes all rows except `adult products`, then inserts the full canonical category list. |
 
 > **Note:** `CREATE TABLE IF NOT EXISTS` and `ADD COLUMN IF NOT EXISTS` guards make every migration safe to re-run without causing errors.
