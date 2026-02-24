@@ -44,7 +44,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--p)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
 .deal-card{background:var(--surf);border:1.5px solid var(--bdr);border-radius:var(--rad);overflow:hidden;transition:all .2s;cursor:pointer}
 .deal-card:hover{border-color:var(--p);box-shadow:var(--sh);transform:translateY(-2px)}
-.deal-img{width:100%;height:160px;object-fit:cover;background:var(--surf2)}
+.deal-img{width:100%;height:160px;background:var(--surf2);overflow:hidden;position:relative}
 .deal-body{padding:14px}
 .stat{background:var(--surf2);border-radius:12px;padding:18px;text-align:center}
 .stat-v{font-size:28px;font-weight:700;margin:6px 0}
@@ -150,6 +150,9 @@ const fromDb = (d) => ({
   status:           d.status || 'ACTIVE',
   imageUrl:         d.image_url || '',
   stackInstructions:d.stack_instructions || '',
+  currentPrice:     d.current_price  ?? null,
+  originalPrice:    d.original_price ?? null,
+  percentOff:       d.percent_off    ?? null,
 });
 
 const toDb = (d) => ({
@@ -168,6 +171,9 @@ const toDb = (d) => ({
   status:            d.status || 'ACTIVE',
   image_url:         d.imageUrl || '',
   stack_instructions:d.stackInstructions || '',
+  current_price:     d.currentPrice  ?? null,
+  original_price:    d.originalPrice ?? null,
+  percent_off:       d.percentOff    ?? null,
 });
 
 // ── Vote helpers ──────────────────────────────────────────────
@@ -535,6 +541,25 @@ function DealCard({deal}){
           )}
         </div>
         <h3 style={{fontSize:15,marginBottom:6,lineHeight:1.3}}>{deal.title}</h3>
+        {(deal.currentPrice != null || deal.originalPrice != null) && (
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+            {deal.currentPrice != null && (
+              <span style={{fontSize:16,fontWeight:700,color:"var(--p)"}}>
+                ${Number(deal.currentPrice).toFixed(2)}
+              </span>
+            )}
+            {deal.originalPrice != null && (
+              <span style={{fontSize:13,color:"var(--muted)",textDecoration:"line-through"}}>
+                ${Number(deal.originalPrice).toFixed(2)}
+              </span>
+            )}
+            {deal.percentOff != null && (
+              <span className="tag tag-ok" style={{fontSize:12}}>
+                {Number(deal.percentOff).toFixed(0)}% OFF
+              </span>
+            )}
+          </div>
+        )}
         <p style={{fontSize:13,color:"var(--muted)",marginBottom:10,lineHeight:1.4}}>{deal.description}</p>
         <div style={{display:"flex",gap:12,fontSize:12,color:"var(--muted)"}}>
           <span><I n="clock" s={11}/> {tu(deal.expires)}</span>
@@ -919,6 +944,26 @@ function DealPage(){
         </div>
         <h1 style={{fontSize:24,marginBottom:10}}>{deal.title}</h1>
 
+        {(deal.currentPrice != null || deal.originalPrice != null) && (
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+            {deal.currentPrice != null && (
+              <span style={{fontSize:22,fontWeight:700,color:"var(--p)"}}>
+                ${Number(deal.currentPrice).toFixed(2)}
+              </span>
+            )}
+            {deal.originalPrice != null && (
+              <span style={{fontSize:16,color:"var(--muted)",textDecoration:"line-through"}}>
+                ${Number(deal.originalPrice).toFixed(2)}
+              </span>
+            )}
+            {deal.percentOff != null && (
+              <span className="tag tag-ok" style={{fontSize:14,padding:"4px 10px"}}>
+                {Number(deal.percentOff).toFixed(0)}% OFF
+              </span>
+            )}
+          </div>
+        )}
+
         {deal.imageUrl&&!imgErr&&(
           <div style={{borderRadius:12,overflow:"hidden",marginBottom:20}}>
             <img src={deal.imageUrl} alt={deal.title} style={{width:"100%",maxHeight:340,objectFit:"cover"}} onError={()=>setImgErr(true)}/>
@@ -1056,6 +1101,7 @@ function DealForm({initial,onSave,onCancel}){
     title:"",description:"",link:"https://",dealType:"SALE",code:"",
     cat:"electronics",expires:ad(7).slice(0,10),featured:false,status:"ACTIVE",
     imageUrl:"", stackInstructions:"",
+    currentPrice: null, originalPrice: null, percentOff: null,
   });
 
   const set=(k,v)=>setS(p=>({...p,[k]:v}));
@@ -1130,6 +1176,59 @@ Deal Type: SALE"
         {s.imageUrl&&(
           <img src={s.imageUrl} alt="preview" style={{marginTop:8,width:"100%",maxHeight:140,objectFit:"cover",borderRadius:8,border:"1px solid var(--bdr)"}} onError={e=>{e.target.style.display="none";}}/>
         )}
+      </div>
+      {/* Pricing fields */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+        <div>
+          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Current Price ($)</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={s.currentPrice ?? ""}
+            onChange={e => {
+              const val = e.target.value;
+              const cur = val === "" ? null : parseFloat(val);
+              const orig = s.originalPrice;
+              const pct = (cur != null && orig != null && orig > 0)
+                ? Math.max(0, Math.round(((orig - cur) / orig) * 100))
+                : s.percentOff;
+              setS(p => ({...p, currentPrice: cur, percentOff: pct}));
+            }}
+            placeholder="e.g. 19.99"
+          />
+        </div>
+        <div>
+          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Original Price ($)</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={s.originalPrice ?? ""}
+            onChange={e => {
+              const val = e.target.value;
+              const orig = val === "" ? null : parseFloat(val);
+              const cur = s.currentPrice;
+              const pct = (cur != null && orig != null && orig > 0)
+                ? Math.max(0, Math.round(((orig - cur) / orig) * 100))
+                : s.percentOff;
+              setS(p => ({...p, originalPrice: orig, percentOff: pct}));
+            }}
+            placeholder="e.g. 39.99"
+          />
+        </div>
+        <div>
+          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>% Off (auto-calculated)</label>
+          <input
+            type="number"
+            step="1"
+            min="0"
+            max="100"
+            value={s.percentOff ?? ""}
+            onChange={e => set("percentOff", e.target.value === "" ? null : parseFloat(e.target.value))}
+            placeholder="e.g. 50"
+          />
+        </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <div>
