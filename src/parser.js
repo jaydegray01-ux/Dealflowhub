@@ -3,13 +3,22 @@
  * OR a "Field: Value" plaintext list and return a normalized deal object for autofill.
  *
  * Supported keys: Title, Deal Type, Description, Image URL, Product URL,
- *                 Promo Code, Category, Expires, Featured, Status
+ *                 Promo Code, Category, Expires, Featured, Status,
+ *                 Current Price, Original Price, Percent Off
  *
  * Field-label aliases (all case-insensitive, punctuation-stripped):
- *   imageUrl  ← "Product Image URL" | "imageUrl" | "image"
- *   link      ← "Product URL"       | "link"     | "url"
- *   code      ← "Promo Code"        | "code"     | "promo"
- *   cat       ← "Category"          | "cat"
+ *   imageUrl      ← "Product Image URL" | "imageUrl" | "image"
+ *   link          ← "Product URL"       | "link"     | "url"
+ *   code          ← "Promo Code"        | "code"     | "promo"
+ *   cat           ← "Category"          | "cat"
+ *   currentPrice  ← "Current Price"     | "Sale Price" | "Deal Price" | "price"
+ *   originalPrice ← "Original Price"    | "Original price" | "Price Before" |
+ *                   "Regular Price"     | "MSRP"           | "List Price"   |
+ *                   "price before deals"
+ *   percentOff    ← "Percent Off"       | "discount"   | "savings"
+ *
+ * Pricing values are normalized: "$", "%", commas, and surrounding whitespace
+ * are stripped and the result is converted to a Number (e.g. "$1,299.00" → 1299, "25%" → 25).
  *
  * Accepts:
  *   - Markdown table rows:  | Field | Value |
@@ -31,6 +40,11 @@ export function parseDealText(raw, cats = []) {
      .replace(/^\*\((.+?)\)\*$/, '$1')
      .replace(/^\*(.+?)\*$/, '$1')
      .trim();
+
+  const parsePrice = s => {
+    const n = Number(s.replace(/[$,%\s]/g, ''));
+    return isNaN(n) ? null : n;
+  };
 
   const matchCat = val => {
     const v = norm(val);
@@ -82,6 +96,18 @@ export function parseDealText(raw, cats = []) {
         break;
       }
       case 'status': { const st = value.toUpperCase(); if (['ACTIVE','INACTIVE'].includes(st)) out.status = st; break; }
+      case 'currentprice': case 'saleprice': case 'dealprice': case 'price': {
+        if (!isNone) { const n = parsePrice(value); if (n !== null) out.currentPrice = n; }
+        break;
+      }
+      case 'originalprice': case 'pricebefore': case 'regularprice': case 'msrp': case 'listprice': case 'pricebeforedeals': {
+        if (!isNone) { const n = parsePrice(value); if (n !== null) out.originalPrice = n; }
+        break;
+      }
+      case 'percentoff': case 'discount': case 'savings': {
+        if (!isNone) { const n = parsePrice(value); if (n !== null) out.percentOff = n; }
+        break;
+      }
       default: break;
     }
   }
