@@ -1095,6 +1095,37 @@ function DashPage(){
 // Thin wrapper so the parser can reference the app's CATS for category matching.
 const parseDealText = (raw) => _parseDealText(raw, CATS);
 
+// ── Amazon image auto-fetch ───────────────────────────────────
+const isAmazonUrl = (url) => /amazon\.(com|co\.uk|de|fr|ca|co\.jp|in|es|it)/i.test(url||'');
+
+const fetchAmazonMainImage = async (url) => {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 8000);
+    const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxy, {signal: ctrl.signal});
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const {contents} = await res.json();
+    // 1) data-old-hires — full-resolution direct URL
+    const hiRes = contents.match(/data-old-hires="([^"]+)"/);
+    if (hiRes?.[1]) return hiRes[1];
+    // 2) data-a-dynamic-image JSON map — first key is the largest image
+    const dyn = contents.match(/data-a-dynamic-image="([^"]+)"/);
+    if (dyn?.[1]) {
+      try {
+        const map = JSON.parse(dyn[1].replace(/&quot;/g,'"').replace(/&#34;/g,'"'));
+        const urls = Object.keys(map);
+        if (urls.length) return urls[0];
+      } catch {}
+    }
+    // 3) landingImage src fallback
+    const landing = contents.match(/id="landingImage"[^>]+src="([^"]+)"/);
+    if (landing?.[1]) return landing[1];
+    return null;
+  } catch { return null; }
+};
+
 function DealForm({initial,onSave,onCancel}){
   const toast=useToast();
   const [s,setS]=useState(initial||{
@@ -1107,12 +1138,23 @@ function DealForm({initial,onSave,onCancel}){
   const set=(k,v)=>setS(p=>({...p,[k]:v}));
 
   const [pasteText,setPasteText]=useState('');
-  const handleParse=()=>{
+  const [parsing,setParsing]=useState(false);
+  const handleParse=async()=>{
     const parsed=parseDealText(pasteText);
     const count=Object.keys(parsed).length;
     if(count===0){ toast?.("Could not parse any fields — check the format and try again","err"); return; }
     if(parsed.percentOff==null&&parsed.currentPrice!=null&&parsed.originalPrice!=null&&parsed.originalPrice>0){
       parsed.percentOff=Math.max(0,Math.round(((parsed.originalPrice-parsed.currentPrice)/parsed.originalPrice)*100));
+    }
+    const targetLink = parsed.link || s.link;
+    if (!parsed.imageUrl && isAmazonUrl(targetLink)) {
+      setParsing(true);
+      try {
+        const img = await fetchAmazonMainImage(targetLink);
+        if (img) parsed.imageUrl = img;
+      } finally {
+        setParsing(false);
+      }
     }
     setS(p=>({...p,...parsed}));
     setPasteText('');
@@ -1150,8 +1192,8 @@ Title: My Deal Title
 Deal Type: SALE"
           style={{fontFamily:"monospace",fontSize:12,marginBottom:8}}
         />
-        <button type="button" className="btn btn-o" onClick={handleParse} style={{fontSize:13,padding:"6px 14px"}}>
-          <I n="check" s={13}/> Parse &amp; Autofill
+        <button type="button" className="btn btn-o" onClick={handleParse} disabled={parsing} style={{fontSize:13,padding:"6px 14px"}}>
+          <I n="check" s={13}/> {parsing?"Fetching image…":"Parse & Autofill"}
         </button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
