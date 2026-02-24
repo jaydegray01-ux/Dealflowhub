@@ -508,7 +508,7 @@ function DealCard({deal}){
     <div className="deal-card" onClick={()=>nav("deal",{id:deal.id})}>
       <div className="deal-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,overflow:"hidden"}}>
         {deal.imageUrl&&!imgErr
-          ?<img src={deal.imageUrl} alt={deal.title} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setImgErr(true)}/>
+          ?<img src={deal.imageUrl} alt={deal.title} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",alignSelf:"stretch"}} onError={()=>setImgErr(true)}/>
           :fallbackEmoji
         }
       </div>
@@ -861,22 +861,37 @@ function DealPage(){
     if(!error) setDeal(d=>({...d,clicks:newClicks}));
   };
 
+  // Normalize a stored link to an absolute URL so protocol-less domain strings
+  // (e.g. "amazon.com/...") don't resolve to the app's own origin and trigger
+  // the Vercel catch-all rewrite back to the home page.
+  // Handles: https?://, protocol-relative //, and bare domain names.
+  // Relative paths (starting with /) are considered invalid and return null.
+  const resolveLink=(link)=>{
+    if(!link) return null;
+    if(/^https?:\/\//i.test(link)) return link;
+    if(link.startsWith('//')) return `https:${link}`;
+    if(link.startsWith('/')) return null; // relative path — invalid external link
+    return `https://${link}`;
+  };
+
   // Updated mainAction: SALE/STACKABLE → Shop Deal; PROMO/BOTH → Copy Code & Shop
+  // window.open is called synchronously (before any await) so the browser
+  // does not treat it as a popup and block it.
   const mainAction=async()=>{
-    await incrementClicks();
-    if(deal.dealType==="SALE"||deal.dealType==="STACKABLE"){
-      window.open(deal.link,"_blank","noopener,noreferrer");
-    } else {
-      // PROMO or BOTH: copy code AND redirect
+    const url=resolveLink(deal.link);
+    if(url) window.open(url,"_blank","noopener,noreferrer");
+    if(deal.dealType!=="SALE"&&deal.dealType!=="STACKABLE"){
+      // PROMO or BOTH: copy code and reveal
       copyCode();
       setRevealed(true);
-      window.open(deal.link,"_blank","noopener,noreferrer");
     }
+    await incrementClicks();
   };
 
   const goToProduct=async()=>{
+    const url=resolveLink(deal.link);
+    if(url) window.open(url,"_blank","noopener,noreferrer");
     await incrementClicks();
-    window.open(deal.link,"_blank","noopener,noreferrer");
   };
 
   const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
