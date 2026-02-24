@@ -7,18 +7,17 @@
  *                 Current Price, Original Price, Percent Off
  *
  * Field-label aliases (all case-insensitive, punctuation-stripped):
- *   imageUrl      ← "Product Image URL" | "imageUrl" | "image"
- *   link          ← "Product URL"       | "link"     | "url"
- *   code          ← "Promo Code"        | "code"     | "promo"
+ *   imageUrl      ← "Product Image URL" | "imageUrl"      | "image"
+ *   link          ← "Product URL"       | "link"          | "url"
+ *   code          ← "Promo Code"        | "code"          | "promo"
  *   cat           ← "Category"          | "cat"
- *   currentPrice  ← "Current Price"     | "Sale Price" | "Deal Price" | "price"
- *   originalPrice ← "Original Price"    | "Original price" | "Price Before" |
- *                   "Regular Price"     | "MSRP"           | "List Price"   |
- *                   "price before deals"
- *   percentOff    ← "Percent Off"       | "discount"   | "savings"
+ *   currentPrice  ← "Current Price"     | "price"         | "sale price"  | "deal price"  | "current_price"  | "currentPrice"
+ *   originalPrice ← "Original Price"    | "price before"  | "price before deals" | "regular price" | "MSRP" | "list price" | "original_price" | "originalPrice"
+ *   percentOff    ← "% off"             | "percent off"   | "discount"    | "discount percent" | "percent_off" | "percentOff" | "savings"
  *
- * Pricing values are normalized: "$", "%", commas, and surrounding whitespace
- * are stripped and the result is converted to a Number (e.g. "$1,299.00" → 1299, "25%" → 25).
+ * Numeric values for currentPrice / originalPrice / percentOff are normalized to
+ * JS numbers: leading "$" and commas are stripped; a trailing "%" is stripped for
+ * percentOff.  Examples: "19.99", "$19.99", "1,299.00", "50%".
  *
  * Accepts:
  *   - Markdown table rows:  | Field | Value |
@@ -41,8 +40,6 @@ export function parseDealText(raw, cats = []) {
      .replace(/^\*(.+?)\*$/, '$1')
      .trim();
 
-  const parsePrice = s => {
-    const n = Number(s.replace(/[$,%\s]/g, ''));
   // Strip leading "$", commas, and optional trailing "%" then parse as float.
   const parseNumeric = v => {
     const s = v.replace(/[$,]/g, '').replace(/%$/, '').trim();
@@ -100,17 +97,6 @@ export function parseDealText(raw, cats = []) {
         break;
       }
       case 'status': { const st = value.toUpperCase(); if (['ACTIVE','INACTIVE'].includes(st)) out.status = st; break; }
-      case 'currentprice': case 'saleprice': case 'dealprice': case 'price': {
-        if (!isNone) { const n = parsePrice(value); if (n !== null) out.currentPrice = n; }
-        break;
-      }
-      case 'originalprice': case 'pricebefore': case 'regularprice': case 'msrp': case 'listprice': case 'pricebeforedeals': {
-        if (!isNone) { const n = parsePrice(value); if (n !== null) out.originalPrice = n; }
-        break;
-      }
-      case 'percentoff': case 'discount': case 'savings': {
-        if (!isNone) { const n = parsePrice(value); if (n !== null) out.percentOff = n; }
-        break;
       case 'currentprice': case 'price': case 'saleprice': case 'dealprice': {
         const n = parseNumeric(value); if (n !== null) out.currentPrice = n; break;
       }
@@ -118,7 +104,7 @@ export function parseDealText(raw, cats = []) {
         const n = parseNumeric(value); if (n !== null) out.originalPrice = n; break;
       }
       case 'off': // normalized form of "% off" / "% Off"
-      case 'percentoff': case 'discount': case 'discountpercent': {
+      case 'percentoff': case 'discount': case 'discountpercent': case 'savings': {
         const n = parseNumeric(value); if (n !== null) out.percentOff = n; break;
       }
       default: break;
