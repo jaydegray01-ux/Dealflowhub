@@ -114,15 +114,20 @@ const fmtDate = (s) => new Date(s).toLocaleDateString("en-US",{month:"short",day
 
 // ── Seed data ────────────────────────────────────────────────
 const CATS = [
-  {id:"electronics",              label:"Electronics",              emoji:"📱", adult:false},
-  {id:"beauty",                   label:"Beauty",                   emoji:"💄", adult:false},
-  {id:"home-and-kitchen",         label:"Home & Kitchen",           emoji:"🏠", adult:false},
-  {id:"pet-supplies",             label:"Pet Supplies",             emoji:"🐾", adult:false},
-  {id:"toys-and-games",           label:"Toys & Games",             emoji:"🎮", adult:false},
-  {id:"baby",                     label:"Baby",                     emoji:"👶", adult:false},
-  {id:"tools-and-home-improvement",label:"Tools & Home Improvement",emoji:"🔧", adult:false},
-  {id:"other",                    label:"Other",                    emoji:"🏷️", adult:false},
   {id:"adult-products",           label:"Adult Products 🔞",        emoji:"🔞", adult:true },
+  {id:"electronics",              label:"Electronics",              emoji:"📱", adult:false},
+  {id:"beauty-and-personal-care", label:"Beauty & personal care",   emoji:"💄", adult:false},
+  {id:"baby",                     label:"Baby",                     emoji:"👶", adult:false},
+  {id:"home-and-kitchen",         label:"Home & kitchen",           emoji:"🏠", adult:false},
+  {id:"arts-and-crafts",          label:"Arts and crafts",          emoji:"🎨", adult:false},
+  {id:"tools-and-home-improvement",label:"Tools and home improvement",emoji:"🔧", adult:false},
+  {id:"pet-supplies",             label:"Pet supplies",             emoji:"🐾", adult:false},
+  {id:"toys-and-games",           label:"Toys and games",           emoji:"🎮", adult:false},
+  {id:"health-and-household",     label:"Health & household",       emoji:"💊", adult:false},
+  {id:"automotive",               label:"Automotive",               emoji:"🚗", adult:false},
+  {id:"clothing",                 label:"Clothing",                 emoji:"👗", adult:false},
+  {id:"sports-and-outdoors",      label:"Sports & outdoors",        emoji:"⛺", adult:false},
+  {id:"other",                    label:"Other",                    emoji:"🏷️", adult:false},
 ];
 
 // ── DB field mapping ──────────────────────────────────────────
