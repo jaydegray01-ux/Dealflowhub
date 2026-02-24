@@ -526,7 +526,7 @@ function DealCard({deal}){
     <div className="deal-card" onClick={()=>nav("deal",{id:deal.id})}>
       <div className="deal-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,overflow:"hidden"}}>
         {deal.imageUrl&&!imgErr
-          ?<img src={deal.imageUrl} alt={deal.title} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",alignSelf:"stretch"}} onError={()=>setImgErr(true)}/>
+          ?<img src={deal.imageUrl} alt={deal.title} referrerPolicy="no-referrer" style={{width:"100%",height:"100%",objectFit:"cover",display:"block",alignSelf:"stretch"}} onError={()=>setImgErr(true)}/>
           :fallbackEmoji
         }
       </div>
@@ -966,7 +966,7 @@ function DealPage(){
 
         {deal.imageUrl&&!imgErr&&(
           <div style={{borderRadius:12,overflow:"hidden",marginBottom:20}}>
-            <img src={deal.imageUrl} alt={deal.title} style={{width:"100%",maxHeight:340,objectFit:"cover"}} onError={()=>setImgErr(true)}/>
+            <img src={deal.imageUrl} alt={deal.title} referrerPolicy="no-referrer" style={{width:"100%",maxHeight:340,objectFit:"cover"}} onError={()=>setImgErr(true)}/>
           </div>
         )}
 
@@ -1174,7 +1174,7 @@ Deal Type: SALE"
         <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Product Image URL</label>
         <input value={s.imageUrl||""} onChange={e=>set("imageUrl",e.target.value)} placeholder="https://images.unsplash.com/..."/>
         {s.imageUrl&&(
-          <img src={s.imageUrl} alt="preview" style={{marginTop:8,width:"100%",maxHeight:140,objectFit:"cover",borderRadius:8,border:"1px solid var(--bdr)"}} onError={e=>{e.target.style.display="none";}}/>
+          <img src={s.imageUrl} alt="preview" referrerPolicy="no-referrer" style={{marginTop:8,width:"100%",maxHeight:140,objectFit:"cover",borderRadius:8,border:"1px solid var(--bdr)"}} onError={e=>{e.target.style.display="none";}}/>
         )}
       </div>
       {/* Pricing fields */}
