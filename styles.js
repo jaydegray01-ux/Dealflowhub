@@ -1111,6 +1111,9 @@ function DealForm({initial,onSave,onCancel}){
     const parsed=parseDealText(pasteText);
     const count=Object.keys(parsed).length;
     if(count===0){ toast?.("Could not parse any fields — check the format and try again","err"); return; }
+    if(parsed.percentOff==null&&parsed.currentPrice!=null&&parsed.originalPrice!=null&&parsed.originalPrice>0){
+      parsed.percentOff=Math.max(0,Math.round(((parsed.originalPrice-parsed.currentPrice)/parsed.originalPrice)*100));
+    }
     setS(p=>({...p,...parsed}));
     setPasteText('');
     if(count<3) toast?.(`Partially filled ${count} field${count>1?"s":""}. Please review.`,"info");
