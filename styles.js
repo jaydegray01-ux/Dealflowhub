@@ -1304,6 +1304,9 @@ const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the 
 //    | Expires        | 2025-12-31                       |
 //    | Featured       | true                             |
 //    | Status         | ACTIVE                           |
+//    | Current Price  | $19.99                           |
+//    | Original Price | $29.99                           |
+//    | % Off          | 33%                              |
 //
 // 2) Plaintext "Field: Value":
 //    Title: My Deal Title
@@ -1315,13 +1318,19 @@ const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the 
 //    Expires: 2025-12-31
 //    Featured: yes
 //    Status: ACTIVE
+//    Current Price: $19.99
+//    Original Price: 29.99
+//    Discount: 33%
 //
 // ── Field-label aliases ───────────────────────────────────────
 //   All field names are case-insensitive (punctuation is stripped).
-//   imageUrl ← "Product Image URL" | "imageUrl" | "image"
-//   link     ← "Product URL"       | "link"     | "url"
-//   code     ← "Promo Code"        | "code"     | "promo"
-//   cat      ← "Category"          | "cat"
+//   imageUrl      ← "Product Image URL" | "imageUrl"      | "image"
+//   link          ← "Product URL"       | "link"          | "url"
+//   code          ← "Promo Code"        | "code"          | "promo"
+//   cat           ← "Category"          | "cat"
+//   currentPrice  ← "Current Price"     | "price"         | "sale price"  | "deal price"  | "current_price"  | "currentPrice"
+//   originalPrice ← "Original Price"    | "price before"  | "price before deals" | "regular price" | "MSRP" | "list price" | "original_price" | "originalPrice"
+//   percentOff    ← "% off"             | "percent off"   | "discount"    | "discount percent" | "percent_off" | "percentOff"
 //
 // ── Return value ─────────────────────────────────────────────
 //   Normalized deal object, e.g.:
@@ -1335,7 +1344,10 @@ const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the 
 //     cat: "electronics",
 //     expires: "2025-12-31",
 //     featured: true,
-//     status: "ACTIVE"
+//     status: "ACTIVE",
+//     currentPrice: 19.99,
+//     originalPrice: 29.99,
+//     percentOff: 33
 //   }
 //   Returns {} (empty object) if no fields can be parsed.`;
 
