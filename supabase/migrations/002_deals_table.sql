@@ -55,6 +55,14 @@ $$;
 ALTER TABLE deals
   ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'other';
 
+-- 3b. If the table existed without image_url or stack_instructions
+--     (added later), backfill those columns so existing rows get defaults
+--     and the frontend imageUrl mapping always finds a value.
+ALTER TABLE deals
+  ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE deals
+  ADD COLUMN IF NOT EXISTS stack_instructions TEXT NOT NULL DEFAULT '';
+
 -- 4. Enable Row Level Security.
 ALTER TABLE deals ENABLE ROW LEVEL SECURITY;
 
