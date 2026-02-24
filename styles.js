@@ -1109,7 +1109,14 @@ const fetchProductImage = async (url) => {
     // 1) og:image — universal standard (works for Amazon and most e-commerce sites)
     const og = contents.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
             || contents.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i);
-    if (og?.[1]) return og[1];
+    if (og?.[1]) {
+      // Use DOMParser to decode all HTML entities (e.g. &amp; in query strings)
+      try {
+        const txt = new DOMParser().parseFromString(og[1],'text/html').documentElement.textContent;
+        if (txt) return txt;
+      } catch {}
+      return og[1];
+    }
     // 2) Amazon-specific: data-old-hires — full-resolution direct URL
     const hiRes = contents.match(/data-old-hires="([^"]+)"/);
     if (hiRes?.[1]) return hiRes[1];
@@ -1140,6 +1147,20 @@ function DealForm({initial,onSave,onCancel}){
 
   const set=(k,v)=>setS(p=>({...p,[k]:v}));
 
+  // Shared helper: try to auto-fetch the product image for a URL, then set imageUrl state.
+  const autoFetchImage = async (url) => {
+    if (!url || !/^https?:\/\/[^/\s]+/i.test(url)) return;
+    setParsing(true);
+    try {
+      const img = await fetchProductImage(url);
+      if (img) set("imageUrl", img);
+    } catch {
+      // Silent failure — image auto-fetch is best-effort
+    } finally {
+      setParsing(false);
+    }
+  };
+
   const [pasteText,setPasteText]=useState('');
   const [parsing,setParsing]=useState(false);
   const handleParse=async()=>{
@@ -1150,7 +1171,7 @@ function DealForm({initial,onSave,onCancel}){
       parsed.percentOff=Math.max(0,Math.round(((parsed.originalPrice-parsed.currentPrice)/parsed.originalPrice)*100));
     }
     const targetLink = parsed.link || s.link;
-    if (!parsed.imageUrl && targetLink && /^https?:\/\//i.test(targetLink)) {
+    if (!parsed.imageUrl && /^https?:\/\/[^/\s]+/i.test(targetLink)) {
       setParsing(true);
       try {
         const img = await fetchProductImage(targetLink);
@@ -1281,7 +1302,7 @@ Deal Type: SALE"
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <div>
           <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Product URL *</label>
-          <input value={s.link} onChange={e=>set("link",e.target.value)} required/>
+          <input value={s.link} onChange={e=>set("link",e.target.value)} onBlur={e=>{ if(!s.imageUrl) autoFetchImage(e.target.value); }} required/>
         </div>
         <div>
           <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Promo Code</label>
