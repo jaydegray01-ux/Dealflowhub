@@ -514,9 +514,10 @@ function DealCard({deal}){
   const handleCopyCode=(e)=>{
     e.stopPropagation();
     if(deal.code){
-      navigator.clipboard?.writeText(deal.code)
-        .then(()=>toast?.(`Code copied: ${deal.code}`,"ok"))
-        .catch(()=>toast?.("Failed to copy code. Please copy manually.","err"));
+      const p=navigator.clipboard?.writeText(deal.code);
+      if(p) p.then(()=>toast?.(`Code copied: ${deal.code}`,"ok"))
+              .catch(()=>toast?.("Failed to copy code. Please copy manually.","err"));
+      else toast?.("Failed to copy code. Please copy manually.","err");
     }
   };
 
@@ -887,8 +888,10 @@ function DealPage(){
 
   const copyCode=()=>{
     if(deal.code){
-      navigator.clipboard?.writeText(deal.code).catch(()=>{});
-      toast?.(`Code copied: ${deal.code}`,"ok");
+      const p=navigator.clipboard?.writeText(deal.code);
+      if(p) p.then(()=>toast?.(`Code copied: ${deal.code}`,"ok"))
+              .catch(()=>toast?.("Failed to copy code. Please copy manually.","err"));
+      else toast?.("Failed to copy code. Please copy manually.","err");
     }
   };
 
