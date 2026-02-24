@@ -1304,6 +1304,9 @@ const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the 
 //    | Expires        | 2025-12-31                       |
 //    | Featured       | true                             |
 //    | Status         | ACTIVE                           |
+//    | Current Price  | $29.99                           |
+//    | Original Price | $39.99                           |
+//    | Percent Off    | 25                               |
 //    | Current Price  | $19.99                           |
 //    | Original Price | $29.99                           |
 //    | % Off          | 33%                              |
@@ -1318,6 +1321,22 @@ const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the 
 //    Expires: 2025-12-31
 //    Featured: yes
 //    Status: ACTIVE
+//    Current Price: $29.99
+//    Original price: $39.99
+//    Percent Off: 25
+//
+// ── Field-label aliases ───────────────────────────────────────
+//   All field names are case-insensitive (punctuation is stripped).
+//   imageUrl      ← "Product Image URL" | "imageUrl" | "image"
+//   link          ← "Product URL"       | "link"     | "url"
+//   code          ← "Promo Code"        | "code"     | "promo"
+//   cat           ← "Category"          | "cat"
+//   currentPrice  ← "Current Price"  | "Sale Price"  | "Deal Price" | "price"
+//   originalPrice ← "Original Price" | "Original price" | "Price Before" |
+//                   "Regular Price"  | "MSRP"           | "List Price"   |
+//                   "price before deals"
+//   percentOff    ← "Percent Off"    | "discount"    | "savings"
+//   Pricing values: "$" and commas are stripped; converted to Number.
 //    Current Price: $19.99
 //    Original Price: 29.99
 //    Discount: 33%
@@ -1345,6 +1364,9 @@ const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the 
 //     expires: "2025-12-31",
 //     featured: true,
 //     status: "ACTIVE",
+//     currentPrice: 29.99,
+//     originalPrice: 39.99,
+//     percentOff: 25
 //     currentPrice: 19.99,
 //     originalPrice: 29.99,
 //     percentOff: 33

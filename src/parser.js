@@ -13,7 +13,7 @@
  *   cat           ← "Category"          | "cat"
  *   currentPrice  ← "Current Price"     | "price"         | "sale price"  | "deal price"  | "current_price"  | "currentPrice"
  *   originalPrice ← "Original Price"    | "price before"  | "price before deals" | "regular price" | "MSRP" | "list price" | "original_price" | "originalPrice"
- *   percentOff    ← "% off"             | "percent off"   | "discount"    | "discount percent" | "percent_off" | "percentOff"
+ *   percentOff    ← "% off"             | "percent off"   | "discount"    | "discount percent" | "percent_off" | "percentOff" | "savings"
  *
  * Numeric values for currentPrice / originalPrice / percentOff are normalized to
  * JS numbers: leading "$" and commas are stripped; a trailing "%" is stripped for
@@ -104,7 +104,7 @@ export function parseDealText(raw, cats = []) {
         const n = parseNumeric(value); if (n !== null) out.originalPrice = n; break;
       }
       case 'off': // normalized form of "% off" / "% Off"
-      case 'percentoff': case 'discount': case 'discountpercent': {
+      case 'percentoff': case 'discount': case 'discountpercent': case 'savings': {
         const n = parseNumeric(value); if (n !== null) out.percentOff = n; break;
       }
       default: break;
