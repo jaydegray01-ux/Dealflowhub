@@ -1095,10 +1095,8 @@ function DashPage(){
 // Thin wrapper so the parser can reference the app's CATS for category matching.
 const parseDealText = (raw) => _parseDealText(raw, CATS);
 
-// ── Amazon image auto-fetch ───────────────────────────────────
-const isAmazonUrl = (url) => /amazon\.(com|co\.uk|de|fr|ca|co\.jp|in|es|it)/i.test(url||'');
-
-const fetchAmazonMainImage = async (url) => {
+// ── Product image auto-fetch ──────────────────────────────────
+const fetchProductImage = async (url) => {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(()=>ctrl.abort(), 8000);
@@ -1107,10 +1105,15 @@ const fetchAmazonMainImage = async (url) => {
     clearTimeout(timer);
     if (!res.ok) return null;
     const {contents} = await res.json();
-    // 1) data-old-hires — full-resolution direct URL
+    if (!contents) return null;
+    // 1) og:image — universal standard (works for Amazon and most e-commerce sites)
+    const og = contents.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
+            || contents.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i);
+    if (og?.[1]) return og[1];
+    // 2) Amazon-specific: data-old-hires — full-resolution direct URL
     const hiRes = contents.match(/data-old-hires="([^"]+)"/);
     if (hiRes?.[1]) return hiRes[1];
-    // 2) data-a-dynamic-image JSON map — first key is the largest image
+    // 3) Amazon-specific: data-a-dynamic-image JSON map — first key is the largest image
     const dyn = contents.match(/data-a-dynamic-image="([^"]+)"/);
     if (dyn?.[1]) {
       try {
@@ -1119,7 +1122,7 @@ const fetchAmazonMainImage = async (url) => {
         if (urls.length) return urls[0];
       } catch {}
     }
-    // 3) landingImage src fallback
+    // 4) Amazon-specific: landingImage src fallback
     const landing = contents.match(/id="landingImage"[^>]+src="([^"]+)"/);
     if (landing?.[1]) return landing[1];
     return null;
@@ -1147,10 +1150,10 @@ function DealForm({initial,onSave,onCancel}){
       parsed.percentOff=Math.max(0,Math.round(((parsed.originalPrice-parsed.currentPrice)/parsed.originalPrice)*100));
     }
     const targetLink = parsed.link || s.link;
-    if (!parsed.imageUrl && isAmazonUrl(targetLink)) {
+    if (!parsed.imageUrl && targetLink && /^https?:\/\//i.test(targetLink)) {
       setParsing(true);
       try {
-        const img = await fetchAmazonMainImage(targetLink);
+        const img = await fetchProductImage(targetLink);
         if (img) parsed.imageUrl = img;
       } finally {
         setParsing(false);
@@ -1352,9 +1355,6 @@ const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the 
 //    | Current Price  | $29.99                           |
 //    | Original Price | $39.99                           |
 //    | Percent Off    | 25                               |
-//    | Current Price  | $19.99                           |
-//    | Original Price | $29.99                           |
-//    | % Off          | 33%                              |
 //
 // 2) Plaintext "Field: Value":
 //    Title: My Deal Title
@@ -1369,22 +1369,6 @@ const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the 
 //    Current Price: $29.99
 //    Original price: $39.99
 //    Percent Off: 25
-//
-// ── Field-label aliases ───────────────────────────────────────
-//   All field names are case-insensitive (punctuation is stripped).
-//   imageUrl      ← "Product Image URL" | "imageUrl" | "image"
-//   link          ← "Product URL"       | "link"     | "url"
-//   code          ← "Promo Code"        | "code"     | "promo"
-//   cat           ← "Category"          | "cat"
-//   currentPrice  ← "Current Price"  | "Sale Price"  | "Deal Price" | "price"
-//   originalPrice ← "Original Price" | "Original price" | "Price Before" |
-//                   "Regular Price"  | "MSRP"           | "List Price"   |
-//                   "price before deals"
-//   percentOff    ← "Percent Off"    | "discount"    | "savings"
-//   Pricing values: "$" and commas are stripped; converted to Number.
-//    Current Price: $19.99
-//    Original Price: 29.99
-//    Discount: 33%
 //
 // ── Field-label aliases ───────────────────────────────────────
 //   All field names are case-insensitive (punctuation is stripped).
@@ -1412,9 +1396,6 @@ const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the 
 //     currentPrice: 29.99,
 //     originalPrice: 39.99,
 //     percentOff: 25
-//     currentPrice: 19.99,
-//     originalPrice: 29.99,
-//     percentOff: 33
 //   }
 //   Returns {} (empty object) if no fields can be parsed.`;
 
