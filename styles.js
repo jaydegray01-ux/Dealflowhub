@@ -506,11 +506,6 @@ function DealCard({deal}){
   const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
   const fallbackEmoji=deal.dealType==="SALE"?"💸":deal.dealType==="PROMO"?"🎫":"🎁";
 
-  const handleShop=(e)=>{
-    e.stopPropagation();
-    if(deal.link) window.open(deal.link,"_blank","noopener,noreferrer");
-  };
-
   const handleCopyCode=(e)=>{
     e.stopPropagation();
     if(deal.code){
@@ -551,9 +546,9 @@ function DealCard({deal}){
         </div>
         <div style={{marginTop:10,display:"flex",gap:8}}>
           {(deal.dealType==="SALE"||deal.dealType==="STACKABLE")&&deal.link&&(
-            <button className="btn btn-p" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={handleShop}>
+            <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={e=>e.stopPropagation()}>
               <I n="link" s={12}/> Shop Deal
-            </button>
+            </a>
           )}
           {(deal.dealType==="PROMO"||deal.dealType==="BOTH")&&(
             <>
@@ -563,9 +558,9 @@ function DealCard({deal}){
                 </button>
               )}
               {deal.link&&(
-                <button className="btn btn-p" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={handleShop}>
+                <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={e=>e.stopPropagation()}>
                   <I n="link" s={12}/> Go to Site
-                </button>
+                </a>
               )}
             </>
           )}
@@ -901,21 +896,11 @@ function DealPage(){
     if(!error) setDeal(d=>({...d,clicks:newClicks}));
   };
 
-  // mainAction: open link synchronously (before async work) to avoid popup blocking
+  // mainAction: copy code and reveal for PROMO/BOTH deals
   const mainAction=()=>{
-    if(deal.dealType==="SALE"||deal.dealType==="STACKABLE"){
-      if(deal.link) window.open(deal.link,"_blank","noopener,noreferrer");
-    } else {
-      // PROMO or BOTH: copy code AND open link
-      copyCode();
-      setRevealed(true);
-      if(deal.link) window.open(deal.link,"_blank","noopener,noreferrer");
-    }
-    incrementClicks();
-  };
-
-  const goToProduct=()=>{
-    if(deal.link) window.open(deal.link,"_blank","noopener,noreferrer");
+    // PROMO or BOTH: copy code AND reveal
+    copyCode();
+    setRevealed(true);
     incrementClicks();
   };
 
@@ -976,15 +961,15 @@ function DealPage(){
         )}
 
         <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-          {(deal.dealType==="SALE"||deal.dealType==="STACKABLE")&&(
-            <button className="btn btn-p" onClick={mainAction} style={{flex:1,justifyContent:"center"}}>
+          {(deal.dealType==="SALE"||deal.dealType==="STACKABLE")&&deal.link&&(
+            <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center"}} onClick={incrementClicks}>
               <I n="link" s={14}/> Shop Deal
-            </button>
+            </a>
           )}
-          {(deal.dealType==="PROMO"||deal.dealType==="BOTH")&&revealed&&(
-            <button className="btn btn-p" onClick={goToProduct} style={{flex:1,justifyContent:"center"}}>
+          {(deal.dealType==="PROMO"||deal.dealType==="BOTH")&&revealed&&deal.link&&(
+            <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center"}} onClick={incrementClicks}>
               <I n="link" s={14}/> Go to Product
-            </button>
+            </a>
           )}
         </div>
       </div>
