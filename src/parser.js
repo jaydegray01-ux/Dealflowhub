@@ -3,13 +3,21 @@
  * OR a "Field: Value" plaintext list and return a normalized deal object for autofill.
  *
  * Supported keys: Title, Deal Type, Description, Image URL, Product URL,
- *                 Promo Code, Category, Expires, Featured, Status
+ *                 Promo Code, Category, Expires, Featured, Status,
+ *                 Current Price, Original Price, Percent Off
  *
  * Field-label aliases (all case-insensitive, punctuation-stripped):
- *   imageUrl  ← "Product Image URL" | "imageUrl" | "image"
- *   link      ← "Product URL"       | "link"     | "url"
- *   code      ← "Promo Code"        | "code"     | "promo"
- *   cat       ← "Category"          | "cat"
+ *   imageUrl      ← "Product Image URL" | "imageUrl"      | "image"
+ *   link          ← "Product URL"       | "link"          | "url"
+ *   code          ← "Promo Code"        | "code"          | "promo"
+ *   cat           ← "Category"          | "cat"
+ *   currentPrice  ← "Current Price"     | "price"         | "sale price"  | "deal price"  | "current_price"  | "currentPrice"
+ *   originalPrice ← "Original Price"    | "price before"  | "price before deals" | "regular price" | "MSRP" | "list price" | "original_price" | "originalPrice"
+ *   percentOff    ← "% off"             | "percent off"   | "discount"    | "discount percent" | "percent_off" | "percentOff"
+ *
+ * Numeric values for currentPrice / originalPrice / percentOff are normalized to
+ * JS numbers: leading "$" and commas are stripped; a trailing "%" is stripped for
+ * percentOff.  Examples: "19.99", "$19.99", "1,299.00", "50%".
  *
  * Accepts:
  *   - Markdown table rows:  | Field | Value |
@@ -32,6 +40,13 @@ export function parseDealText(raw, cats = []) {
      .replace(/^\*(.+?)\*$/, '$1')
      .trim();
 
+  // Strip leading "$", commas, and optional trailing "%" then parse as float.
+  const parseNumeric = v => {
+    const s = v.replace(/[$,]/g, '').replace(/%$/, '').trim();
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  };
+
   const matchCat = val => {
     const v = norm(val);
     for (const c of cats) {
@@ -51,7 +66,7 @@ export function parseDealText(raw, cats = []) {
       field = clean(tbl[1]);
       value = clean(tbl[2]);
     } else {
-      const plain = line.match(/^\s*\*{0,2}([A-Za-z][\w &]+?)\*{0,2}\s*:\s*(.+)/);
+      const plain = line.match(/^\s*\*{0,2}([A-Za-z%][\w &%]+?)\*{0,2}\s*:\s*(.+)/);
       if (plain) { field = clean(plain[1]); value = clean(plain[2]); }
     }
     if (!field || !value) continue;
@@ -82,6 +97,16 @@ export function parseDealText(raw, cats = []) {
         break;
       }
       case 'status': { const st = value.toUpperCase(); if (['ACTIVE','INACTIVE'].includes(st)) out.status = st; break; }
+      case 'currentprice': case 'price': case 'saleprice': case 'dealprice': {
+        const n = parseNumeric(value); if (n !== null) out.currentPrice = n; break;
+      }
+      case 'originalprice': case 'pricebefore': case 'pricebeforedeals': case 'regularprice': case 'msrp': case 'listprice': {
+        const n = parseNumeric(value); if (n !== null) out.originalPrice = n; break;
+      }
+      case 'off': // normalized form of "% off" / "% Off"
+      case 'percentoff': case 'discount': case 'discountpercent': {
+        const n = parseNumeric(value); if (n !== null) out.percentOff = n; break;
+      }
       default: break;
     }
   }
