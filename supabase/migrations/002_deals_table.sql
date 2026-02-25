@@ -68,12 +68,14 @@ ALTER TABLE deals ENABLE ROW LEVEL SECURITY;
 
 -- 5. RLS Policies
 --    Everyone can read active deals.
-CREATE POLICY IF NOT EXISTS "Public read active deals"
+DROP POLICY IF EXISTS "Public read active deals" ON deals;
+CREATE POLICY "Public read active deals"
   ON deals FOR SELECT
   USING (status = 'ACTIVE');
 
 --    Admins can read all deals (including inactive).
-CREATE POLICY IF NOT EXISTS "Admins read all deals"
+DROP POLICY IF EXISTS "Admins read all deals" ON deals;
+CREATE POLICY "Admins read all deals"
   ON deals FOR SELECT
   USING (
     EXISTS (
@@ -84,7 +86,8 @@ CREATE POLICY IF NOT EXISTS "Admins read all deals"
   );
 
 --    Only admins can insert deals.
-CREATE POLICY IF NOT EXISTS "Admins insert deals"
+DROP POLICY IF EXISTS "Admins insert deals" ON deals;
+CREATE POLICY "Admins insert deals"
   ON deals FOR INSERT
   WITH CHECK (
     EXISTS (
@@ -95,7 +98,8 @@ CREATE POLICY IF NOT EXISTS "Admins insert deals"
   );
 
 --    Only admins can update deals.
-CREATE POLICY IF NOT EXISTS "Admins update deals"
+DROP POLICY IF EXISTS "Admins update deals" ON deals;
+CREATE POLICY "Admins update deals"
   ON deals FOR UPDATE
   USING (
     EXISTS (
@@ -106,7 +110,8 @@ CREATE POLICY IF NOT EXISTS "Admins update deals"
   );
 
 --    Only admins can delete deals.
-CREATE POLICY IF NOT EXISTS "Admins delete deals"
+DROP POLICY IF EXISTS "Admins delete deals" ON deals;
+CREATE POLICY "Admins delete deals"
   ON deals FOR DELETE
   USING (
     EXISTS (
