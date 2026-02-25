@@ -1420,6 +1420,128 @@ const PARSER_SNIPPET = `// src/parser.js – copy this file locally to test the 
 //   }
 //   Returns {} (empty object) if no fields can be parsed.`;
 
+// ── ListingReference ─────────────────────────────────────────
+const METHOD_LISTING_SNIPPET = `// Save & Earn Method — field reference
+// Each entry in _methods must follow this shape:
+
+{
+  // ── Required ──────────────────────────────────────────────
+  "id":            "m1",              // Unique ID (auto-assigned: "m" + Date.now()).
+  "title":         "Rakuten Cashback",// Display name shown on the card heading.
+  "tabType":       "earn_more",       // Tab bucket (see valid values below).
+  "summary":       "Earn cashback on purchases at 3,500+ stores.",
+                                      // One-sentence hook shown in the card preview.
+  "description":   "Rakuten (formerly Ebates) gives you a percentage of your purchase back as cash every quarter.",
+                                      // Full explanation rendered in the detail view.
+
+  // ── Guidance ──────────────────────────────────────────────
+  "steps": [                          // Ordered list of how-to instructions.
+    "Sign up for a free Rakuten account",
+    "Install the Rakuten browser extension",
+    "Activate cashback before shopping at any participating store",
+    "Get paid via PayPal or check every quarter"
+  ],
+  "potentialRange": "$50–$500/year",  // Expected earnings / savings range (string).
+  "requirements":  "Free to join. Must activate before shopping.",
+                                      // Prerequisites or eligibility notes.
+  "tips":          "Stack with store sales and promo codes for maximum savings.",
+                                      // Pro tips shown below the steps.
+  "links": [                          // Array of resource URLs (can be empty []).
+    "https://www.rakuten.com"
+  ],
+
+  // ── System ────────────────────────────────────────────────
+  "order":         0,                 // Sort position within the same tabType group (0-based, auto-set).
+  "createdAt":     "2025-01-01T00:00:00.000Z" // ISO timestamp (auto-assigned on creation).
+}
+
+// ── Valid tabType values ──────────────────────────────────────
+// "earn_more"  →  💰 Earn More   tab  (methods that generate income / cashback)
+// "save_more"  →  🏷️ Save More   tab  (methods that reduce spend / find discounts)`;
+
+function ListingReference(){
+  const toast=useToast();
+  const [copied,setCopied]=useState(false);
+  const copy=()=>{
+    navigator.clipboard.writeText(METHOD_LISTING_SNIPPET).then(()=>{
+      setCopied(true); toast?.("Snippet copied to clipboard","ok");
+      setTimeout(()=>setCopied(false),2000);
+    }).catch(()=>toast?.("Copy failed — select and copy manually","err"));
+  };
+
+  const FIELDS=[
+    {name:"id",          req:"auto",     desc:'Unique method ID. Auto-assigned as "m" + Date.now() on creation.'},
+    {name:"title",       req:"required", desc:"Display name shown on the card heading."},
+    {name:"tabType",     req:"required", desc:'Tab bucket. Valid: "earn_more" (💰 Earn More) or "save_more" (🏷️ Save More).'},
+    {name:"summary",     req:"required", desc:"One-sentence hook displayed in the card preview."},
+    {name:"description", req:"required", desc:"Full explanation rendered in the method detail view."},
+    {name:"steps",       req:"required", desc:"Ordered string array of how-to instructions."},
+    {name:"potentialRange",req:"required",desc:'Expected earnings or savings range, e.g. "$50–$500/year".'},
+    {name:"requirements",req:"optional", desc:"Prerequisites or eligibility notes shown below the description."},
+    {name:"tips",        req:"optional", desc:"Pro tips displayed beneath the steps."},
+    {name:"links",       req:"optional", desc:"Array of resource URLs. Use [] when there are no links."},
+    {name:"order",       req:"auto",     desc:"Sort position within the same tabType group (0-based). Auto-set on creation."},
+    {name:"createdAt",   req:"auto",     desc:"ISO 8601 timestamp. Auto-assigned on creation."},
+  ];
+
+  const badgeStyle=(req)=>({
+    display:"inline-block",padding:"1px 8px",borderRadius:20,fontSize:11,fontWeight:600,
+    background: req==="required"?"#6c63ff22":req==="auto"?"#4dffb422":"#ffd16622",
+    color:       req==="required"?"var(--p)":  req==="auto"?"var(--ok)":   "var(--warn)",
+  });
+
+  return(
+    <div style={{maxWidth:860,display:"flex",flexDirection:"column",gap:20}}>
+      <div className="card">
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+          <h3 style={{flex:1,fontSize:17}}>📋 Save &amp; Earn — Listing Reference</h3>
+          <button className="btn btn-o" style={{fontSize:13,padding:"6px 14px"}} onClick={copy}>
+            <I n="copy" s={13}/> {copied?"Copied!":"Copy JSON"}
+          </button>
+        </div>
+        <p style={{fontSize:13,color:"var(--muted)",marginBottom:20,lineHeight:1.6}}>
+          Every entry in <code>_methods</code> (in <code>styles.js</code>) must follow the shape below.
+          Use the table to understand each field, then copy the annotated JSON example as a starting point.
+        </p>
+        <div style={{overflowX:"auto",marginBottom:0}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead>
+              <tr style={{borderBottom:"1.5px solid var(--bdr)",color:"var(--muted)",fontSize:12}}>
+                {["Field","Status","Description"].map(h=>(
+                  <th key={h} style={{padding:"8px 12px",textAlign:"left",fontWeight:600}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {FIELDS.map(f=>(
+                <tr key={f.name} style={{borderBottom:"1px solid var(--bdr)"}}>
+                  <td style={{padding:"9px 12px",fontFamily:"monospace",fontSize:13,color:"var(--p)",whiteSpace:"nowrap"}}>
+                    {f.name}
+                  </td>
+                  <td style={{padding:"9px 12px",whiteSpace:"nowrap"}}>
+                    <span style={badgeStyle(f.req)}>{f.req}</span>
+                  </td>
+                  <td style={{padding:"9px 12px",color:"var(--txt)",lineHeight:1.5}}>{f.desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card">
+        <h4 style={{fontSize:15,marginBottom:12}}>Annotated JSON Example</h4>
+        <pre style={{
+          background:"var(--bg)",border:"1.5px solid var(--bdr)",borderRadius:10,
+          padding:"16px 18px",fontSize:12,lineHeight:1.7,overflowX:"auto",
+          color:"var(--txt)",fontFamily:"'Fira Code','Cascadia Code',monospace",
+          whiteSpace:"pre",maxHeight:520,
+        }}>{METHOD_LISTING_SNIPPET}</pre>
+      </div>
+    </div>
+  );
+}
+
 // ── ParserReference ───────────────────────────────────────────
 function ParserReference(){
   const toast=useToast();
@@ -1525,12 +1647,17 @@ function AdminDash(){
           <button className={`btn ${adminSection==="parser"?"btn-p":"btn-d"}`} onClick={()=>setAdminSection("parser")}>
             ⚡ Parser Reference
           </button>
+          <button className={`btn ${adminSection==="listing"?"btn-p":"btn-d"}`} onClick={()=>setAdminSection("listing")}>
+            📋 Listing Reference
+          </button>
         </div>
 
         {adminSection==="methods" ? (
           <MethodsAdmin methods={methods} refresh={refreshMethods} toast={toast}/>
         ) : adminSection==="parser" ? (
           <ParserReference/>
+        ) : adminSection==="listing" ? (
+          <ListingReference/>
         ) : (
           <>
             {/* Issue 13 fixed: renamed map variable from `s` to `stat` to avoid shadowing DealForm's `s` setter */}
