@@ -31,12 +31,14 @@ ALTER TABLE methods ENABLE ROW LEVEL SECURITY;
 -- 3. RLS Policies
 
 --    Everyone can read methods.
-CREATE POLICY IF NOT EXISTS "Public read methods"
+DROP POLICY IF EXISTS "Public read methods" ON methods;
+CREATE POLICY "Public read methods"
   ON methods FOR SELECT
   USING (true);
 
 --    Only admins can insert methods.
-CREATE POLICY IF NOT EXISTS "Admins insert methods"
+DROP POLICY IF EXISTS "Admins insert methods" ON methods;
+CREATE POLICY "Admins insert methods"
   ON methods FOR INSERT
   WITH CHECK (
     EXISTS (
@@ -47,7 +49,8 @@ CREATE POLICY IF NOT EXISTS "Admins insert methods"
   );
 
 --    Only admins can update methods.
-CREATE POLICY IF NOT EXISTS "Admins update methods"
+DROP POLICY IF EXISTS "Admins update methods" ON methods;
+CREATE POLICY "Admins update methods"
   ON methods FOR UPDATE
   USING (
     EXISTS (
@@ -58,7 +61,8 @@ CREATE POLICY IF NOT EXISTS "Admins update methods"
   );
 
 --    Only admins can delete methods.
-CREATE POLICY IF NOT EXISTS "Admins delete methods"
+DROP POLICY IF EXISTS "Admins delete methods" ON methods;
+CREATE POLICY "Admins delete methods"
   ON methods FOR DELETE
   USING (
     EXISTS (
