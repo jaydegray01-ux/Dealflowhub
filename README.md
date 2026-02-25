@@ -26,5 +26,6 @@ supabase db push
 | `002_deals_table.sql` | Creates the `deals` table with the `category` column and handles migration from the legacy `cat` column name. Run this to fix deal-saving errors in the admin dashboard. |
 | `003_categories_table.sql` | Creates the `categories` table, removes all rows except `adult products`, then inserts the full canonical category list. |
 | `004_price_fields.sql` | Adds `current_price`, `original_price`, and `percent_off` (nullable `NUMERIC`) columns to the `deals` table. |
+| `005_methods_table.sql` | Creates the `methods` table (Save & Earn), enables RLS, and seeds the three built-in methods (Rakuten, Ibotta, Cashback Credit Card). Run this to enable persistent Save & Earn method management in the admin dashboard. |
 
 > **Note:** `CREATE TABLE IF NOT EXISTS` and `ADD COLUMN IF NOT EXISTS` guards make every migration safe to re-run without causing errors.

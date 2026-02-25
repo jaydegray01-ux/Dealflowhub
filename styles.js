@@ -176,6 +176,35 @@ const toDb = (d) => ({
   percent_off:       d.percentOff    ?? null,
 });
 
+// ── Methods DB field mapping ──────────────────────────────────
+const fromMethodDb = (r) => ({
+  id:             r.id,
+  title:          r.title,
+  tabType:        r.tab_type,
+  summary:        r.summary || '',
+  description:    r.description || '',
+  steps:          r.steps || [],
+  potentialRange: r.potential_range || '',
+  requirements:   r.requirements || '',
+  tips:           r.tips || '',
+  links:          r.links || [],
+  order:          r.sort_order ?? 0,
+  createdAt:      r.created_at,
+});
+
+const toMethodDb = (m) => ({
+  title:           m.title,
+  tab_type:        m.tabType,
+  summary:         m.summary || '',
+  description:     m.description || '',
+  steps:           m.steps || [],
+  potential_range: m.potentialRange || '',
+  requirements:    m.requirements || '',
+  tips:            m.tips || '',
+  links:           m.links || [],
+  sort_order:      m.order ?? 0,
+});
+
 // ── Vote helpers ──────────────────────────────────────────────
 const DELETE_AFTER_DOWNVOTES = 10;
 
@@ -1583,16 +1612,19 @@ function AdminDash(){
   const [editing,setEditing]=useState(null);
   const [adding,setAdding]=useState(false);
   const [adminSection,setAdminSection]=useState("deals");
-  const [methods,setMethods]=useState(getMethods);
+  const [methods,setMethods]=useState([]);
   const [dealFilter,setDealFilter]=useState("all");
 
   const refresh=async()=>{
     const {data}=await supabase.from('deals').select('*').order('created_at',{ascending:false});
     setDeals((data||[]).map(fromDb));
   };
-  const refreshMethods=()=>setMethods(getMethods());
+  const refreshMethods=async()=>{
+    const {data}=await supabase.from('methods').select('*').order('sort_order',{ascending:true});
+    setMethods((data||[]).map(fromMethodDb));
+  };
 
-  useEffect(()=>{ refresh(); },[]);
+  useEffect(()=>{ refresh(); refreshMethods(); },[]);
 
   const handleAdd=async(d)=>{
     const {error}=await supabase.from('deals').insert([toDb(d)]);
@@ -1844,6 +1876,25 @@ function MethodsAdmin({methods,refresh,toast}){
   const [adding,setAdding]=useState(false);
   const [editing,setEditing]=useState(null);
 
+  const handleAdd=async(m)=>{
+    const sameTab=methods.filter(x=>x.tabType===m.tabType).length;
+    const {error}=await supabase.from('methods').insert([{...toMethodDb(m),sort_order:sameTab}]);
+    if(error){ toast?.(error.message,"err"); return; }
+    await refresh(); setAdding(false); toast?.("Method added","ok");
+  };
+
+  const handleEdit=async(m)=>{
+    const {error}=await supabase.from('methods').update(toMethodDb(m)).eq('id',editing.id);
+    if(error){ toast?.(error.message,"err"); return; }
+    await refresh(); setEditing(null); toast?.("Method updated","ok");
+  };
+
+  const handleDelete=async(id)=>{
+    const {error}=await supabase.from('methods').delete().eq('id',id);
+    if(error){ toast?.(error.message,"err"); return; }
+    await refresh(); toast?.("Method deleted","info");
+  };
+
   return(
     <div>
       <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
@@ -1855,7 +1906,7 @@ function MethodsAdmin({methods,refresh,toast}){
         <div className="card" style={{marginBottom:20}}>
           <h3 style={{marginBottom:14}}>Add Method</h3>
           <MethodForm
-            onSave={m=>{ addMethod(m); refresh(); setAdding(false); toast?.("Method added","ok"); }}
+            onSave={handleAdd}
             onCancel={()=>setAdding(false)}
           />
         </div>
@@ -1867,7 +1918,7 @@ function MethodsAdmin({methods,refresh,toast}){
             <h3 style={{marginBottom:14}}>Edit Method</h3>
             <MethodForm
               initial={editing}
-              onSave={m=>{ updateMethod(editing.id,m); refresh(); setEditing(null); toast?.("Method updated","ok"); }}
+              onSave={handleEdit}
               onCancel={()=>setEditing(null)}
             />
           </div>
@@ -1893,7 +1944,7 @@ function MethodsAdmin({methods,refresh,toast}){
                     </div>
                     <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12}} onClick={()=>setEditing(m)}>✏️</button>
                     <button className="btn btn-d" style={{padding:"4px 10px",fontSize:12,color:"var(--err)"}}
-                      onClick={()=>{ deleteMethod(m.id); refresh(); toast?.("Method deleted","info"); }}>🗑️</button>
+                      onClick={()=>handleDelete(m.id)}>🗑️</button>
                   </div>
                 ))}
               </div>
@@ -1909,7 +1960,14 @@ function MethodsAdmin({methods,refresh,toast}){
 function OtherWaysPage(){
   const [tab,setTab]=useState("earn_more");
   const [expanded,setExpanded]=useState({});
-  const methods=getMethods().filter(m=>m.tabType===tab).sort((a,b)=>a.order-b.order);
+  const [allMethods,setAllMethods]=useState([]);
+
+  useEffect(()=>{
+    supabase.from('methods').select('*').order('sort_order',{ascending:true})
+      .then(({data})=>setAllMethods((data||[]).map(fromMethodDb)));
+  },[]);
+
+  const methods=allMethods.filter(m=>m.tabType===tab);
 
   const toggle=(id)=>setExpanded(p=>({...p,[id]:!p[id]}));
 
