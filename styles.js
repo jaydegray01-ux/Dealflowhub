@@ -561,6 +561,11 @@ function DealCard({deal}){
     }
   };
 
+  const handleLinkClick=(e)=>{
+    e.stopPropagation();
+    supabase.rpc('increment_deal_clicks',{p_deal_id:deal.id});
+  };
+
   return(
     <div className="deal-card" onClick={()=>nav("deal",{id:deal.id})}>
       <div className="deal-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,overflow:"hidden"}}>
@@ -610,7 +615,7 @@ function DealCard({deal}){
         </div>
         <div style={{marginTop:10,display:"flex",gap:8,flexWrap:"wrap"}}>
           {(deal.dealType==="SALE"||deal.dealType==="STACKABLE")&&deal.link&&(
-            <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={e=>e.stopPropagation()}>
+            <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={handleLinkClick}>
               <I n="link" s={12}/> Shop Deal
             </a>
           )}
@@ -622,7 +627,7 @@ function DealCard({deal}){
                 </button>
               )}
               {deal.link&&(
-                <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={e=>e.stopPropagation()}>
+                <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={handleLinkClick}>
                   <I n="link" s={12}/> Go to Site
                 </a>
               )}
@@ -969,9 +974,8 @@ function DealPage(){
   };
 
   const incrementClicks=async()=>{
-    const newClicks=deal.clicks+1;
-    const {error}=await supabase.from('deals').update({clicks:newClicks}).eq('id',deal.id);
-    if(!error) setDeal(d=>({...d,clicks:newClicks}));
+    const {error}=await supabase.rpc('increment_deal_clicks',{p_deal_id:deal.id});
+    if(!error) setDeal(d=>({...d,clicks:d.clicks+1}));
   };
 
   // mainAction: copy code and reveal for PROMO/BOTH deals
