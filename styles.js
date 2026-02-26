@@ -1650,7 +1650,8 @@ function AdminDash(){
     setDeals((data||[]).map(fromDb));
   };
   const refreshMethods=async()=>{
-    const {data}=await supabase.from('methods').select('*').order('sort_order',{ascending:true});
+    const {data,error}=await supabase.from('methods').select('*').order('sort_order',{ascending:true});
+    if(error){ toast?.(error.message,"err"); return; }
     setMethods((data||[]).map(fromMethodDb));
   };
 
@@ -2029,7 +2030,7 @@ function OtherWaysPage(){
 
   useEffect(()=>{
     supabase.from('methods').select('*').order('sort_order',{ascending:true})
-      .then(({data})=>setAllMethods((data||[]).map(fromMethodDb)));
+      .then(({data,error})=>{ if(error){ console.error('methods fetch:',error.message); return; } setAllMethods((data||[]).map(fromMethodDb)); });
   },[]);
 
   const methods=allMethods.filter(m=>m.tabType===tab);
