@@ -551,6 +551,16 @@ function DealCard({deal}){
     }
   };
 
+  const handleCopyLink=(e)=>{
+    e.stopPropagation();
+    if(deal.link){
+      const p=navigator.clipboard?.writeText(deal.link);
+      if(p) p.then(()=>toast?.("Link copied!","ok"))
+              .catch(()=>toast?.("Failed to copy link. Please copy manually.","err"));
+      else toast?.("Failed to copy link. Please copy manually.","err");
+    }
+  };
+
   return(
     <div className="deal-card" onClick={()=>nav("deal",{id:deal.id})}>
       <div className="deal-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,overflow:"hidden"}}>
@@ -598,7 +608,7 @@ function DealCard({deal}){
         <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--bdr)"}}>
           <VoteBar deal={deal} compact={true}/>
         </div>
-        <div style={{marginTop:10,display:"flex",gap:8}}>
+        <div style={{marginTop:10,display:"flex",gap:8,flexWrap:"wrap"}}>
           {(deal.dealType==="SALE"||deal.dealType==="STACKABLE")&&deal.link&&(
             <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={e=>e.stopPropagation()}>
               <I n="link" s={12}/> Shop Deal
@@ -617,6 +627,11 @@ function DealCard({deal}){
                 </a>
               )}
             </>
+          )}
+          {deal.link&&(
+            <button className="btn btn-d" style={{padding:"6px 10px",fontSize:12}} onClick={handleCopyLink}>
+              <I n="copy" s={12}/> Copy Link
+            </button>
           )}
         </div>
       </div>
@@ -944,6 +959,15 @@ function DealPage(){
     }
   };
 
+  const copyLink=()=>{
+    if(deal.link){
+      const p=navigator.clipboard?.writeText(deal.link);
+      if(p) p.then(()=>toast?.("Link copied!","ok"))
+              .catch(()=>toast?.("Failed to copy link. Please copy manually.","err"));
+      else toast?.("Failed to copy link. Please copy manually.","err");
+    }
+  };
+
   const incrementClicks=async()=>{
     const newClicks=deal.clicks+1;
     const {error}=await supabase.from('deals').update({clicks:newClicks}).eq('id',deal.id);
@@ -1044,6 +1068,11 @@ function DealPage(){
             <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center"}} onClick={incrementClicks}>
               <I n="link" s={14}/> Go to Product
             </a>
+          )}
+          {deal.link&&(
+            <button className="btn btn-d" style={{padding:"10px 22px"}} onClick={copyLink}>
+              <I n="copy" s={14}/> Copy Link
+            </button>
           )}
         </div>
       </div>
