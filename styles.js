@@ -1961,6 +1961,14 @@ function OtherWaysPage(){
   const [tab,setTab]=useState("earn_more");
   const [expanded,setExpanded]=useState({});
   const [allMethods,setAllMethods]=useState([]);
+  const toast=useToast();
+
+  const handleCopyLink=(url)=>{
+    const p=navigator.clipboard?.writeText(url);
+    if(p) p.then(()=>toast?.("Link copied!","ok"))
+            .catch(()=>toast?.("Failed to copy link. Please copy manually.","err"));
+    else toast?.("Failed to copy link. Please copy manually.","err");
+  };
 
   useEffect(()=>{
     supabase.from('methods').select('*').order('sort_order',{ascending:true})
@@ -2060,10 +2068,15 @@ function OtherWaysPage(){
                   {m.links&&m.links.length>0&&(
                     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                       {m.links.map((url,i)=>(
-                        <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                          className="btn btn-o" style={{padding:"6px 14px",fontSize:13}}>
-                          🔗 Visit →
-                        </a>
+                        <React.Fragment key={i}>
+                          <a href={url} target="_blank" rel="noopener noreferrer"
+                            className="btn btn-o" style={{padding:"6px 14px",fontSize:13}}>
+                            🔗 Visit →
+                          </a>
+                          <button className="btn btn-d" style={{padding:"6px 14px",fontSize:13}} onClick={()=>handleCopyLink(url)}>
+                            <I n="copy" s={13}/> Copy Link
+                          </button>
+                        </React.Fragment>
                       ))}
                     </div>
                   )}
