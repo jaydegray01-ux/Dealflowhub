@@ -1,5 +1,5 @@
 import { supabase } from './src/supabase.js'
-import { parseDealText as _parseDealText } from './src/parser.js'
+import { parseDealText as _parseDealText, parseMethodText as _parseMethodText } from './src/parser.js'
 
 /* ============================================================
    Deal Flow Hub — single-file React app
@@ -1152,6 +1152,7 @@ function DashPage(){
 // ── Deal-text parser: Markdown table or "Field: Value" plaintext ──
 // Thin wrapper so the parser can reference the app's CATS for category matching.
 const parseDealText = (raw) => _parseDealText(raw, CATS);
+const parseMethodText = (raw) => _parseMethodText(raw);
 
 // ── Product image auto-fetch ──────────────────────────────────
 const fetchProductImage = async (url) => {
@@ -1837,6 +1838,20 @@ function MethodForm({initial,onSave,onCancel}){
   });
   const set=(k,v)=>setS(p=>({...p,[k]:v}));
 
+  const [pasteText,setPasteText]=useState('');
+  const handleParse=()=>{
+    const parsed=parseMethodText(pasteText);
+    const count=Object.keys(parsed).length;
+    if(count===0){ toast?.("Could not parse any fields — check the format and try again","err"); return; }
+    const update={...parsed};
+    if(parsed.steps){ update.stepsRaw=parsed.steps.join("\n"); delete update.steps; }
+    if(parsed.links){ update.linksRaw=parsed.links.join("\n"); delete update.links; }
+    setS(p=>({...p,...update}));
+    setPasteText('');
+    if(count<3) toast?.(`Partially filled ${count} field${count>1?"s":""}. Please review.`,"info");
+    else toast?.(`Auto-filled ${count} field${count>1?"s":""}. Review before saving.`,"ok");
+  };
+
   const submit=(e)=>{
     e.preventDefault();
     if(!s.title.trim()){ toast?.("Title is required","err"); return; }
@@ -1849,6 +1864,19 @@ function MethodForm({initial,onSave,onCancel}){
 
   return(
     <form onSubmit={submit} style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:10,padding:12}}>
+        <label style={{fontSize:12,color:"var(--muted)",marginBottom:6,display:"block",fontWeight:600}}>⚡ Paste method info (Markdown table or Field: Value)</label>
+        <textarea
+          value={pasteText}
+          onChange={e=>setPasteText(e.target.value)}
+          rows={4}
+          placeholder={"| Field | Value |\n| Title | Rakuten Cashback |\n| Tab Type | earn_more |\n— or —\nTitle: Rakuten Cashback\nSteps: Sign up; Activate cashback; Shop; Get paid\nPotential Range: $50–$500/year"}
+          style={{fontFamily:"monospace",fontSize:12,marginBottom:8}}
+        />
+        <button type="button" className="btn btn-o" onClick={handleParse} style={{fontSize:13,padding:"6px 14px"}}>
+          <I n="check" s={13}/> Parse &amp; Autofill
+        </button>
+      </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <div>
           <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Title *</label>
