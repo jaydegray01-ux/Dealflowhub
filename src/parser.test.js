@@ -4,7 +4,7 @@
  * (No external test framework needed – uses Node's built-in assert module.)
  */
 import assert from 'node:assert/strict';
-import { parseDealText } from './parser.js';
+import { parseDealText, parseMethodText } from './parser.js';
 
 let passed = 0;
 let failed = 0;
@@ -185,6 +185,120 @@ test('handles negative price (strips $ and parses)', () => {
 test('handles large number with commas', () => {
   const r = parseDealText('Original Price: $1,299.99');
   assert.equal(r.originalPrice, 1299.99);
+});
+
+// ── parseMethodText ───────────────────────────────────────────
+
+test('parseMethodText: parses title from plaintext', () => {
+  const r = parseMethodText('Title: Rakuten Cashback');
+  assert.equal(r.title, 'Rakuten Cashback');
+});
+
+test('parseMethodText: parses tabType earn_more', () => {
+  const r = parseMethodText('Tab Type: earn_more');
+  assert.equal(r.tabType, 'earn_more');
+});
+
+test('parseMethodText: parses tabType save_more', () => {
+  const r = parseMethodText('Tab Type: save_more');
+  assert.equal(r.tabType, 'save_more');
+});
+
+test('parseMethodText: parses tabType from "Earn More" label', () => {
+  const r = parseMethodText('Tab: Earn More');
+  assert.equal(r.tabType, 'earn_more');
+});
+
+test('parseMethodText: parses tabType from "Save More" label', () => {
+  const r = parseMethodText('Tab: Save More');
+  assert.equal(r.tabType, 'save_more');
+});
+
+test('parseMethodText: parses summary', () => {
+  const r = parseMethodText('Summary: Earn cashback at 3,500+ stores.');
+  assert.equal(r.summary, 'Earn cashback at 3,500+ stores.');
+});
+
+test('parseMethodText: parses description', () => {
+  const r = parseMethodText('Description: Full explanation here.');
+  assert.equal(r.description, 'Full explanation here.');
+});
+
+test('parseMethodText: parses steps split by semicolons', () => {
+  const r = parseMethodText('Steps: Sign up; Activate cashback; Shop; Get paid');
+  assert.deepEqual(r.steps, ['Sign up', 'Activate cashback', 'Shop', 'Get paid']);
+});
+
+test('parseMethodText: parses steps split by pipes', () => {
+  const r = parseMethodText('Steps: Sign up | Activate | Shop');
+  assert.deepEqual(r.steps, ['Sign up', 'Activate', 'Shop']);
+});
+
+test('parseMethodText: parses numbered Step 1 / Step 2 fields', () => {
+  const r = parseMethodText('Step 1: Sign up\nStep 2: Activate cashback\nStep 3: Shop');
+  assert.deepEqual(r.steps, ['Sign up', 'Activate cashback', 'Shop']);
+});
+
+test('parseMethodText: parses potentialRange', () => {
+  const r = parseMethodText('Potential Range: $50–$500/year');
+  assert.equal(r.potentialRange, '$50–$500/year');
+});
+
+test('parseMethodText: parses potentialRange alias "Earnings"', () => {
+  const r = parseMethodText('Earnings: $100–$300/month');
+  assert.equal(r.potentialRange, '$100–$300/month');
+});
+
+test('parseMethodText: parses requirements', () => {
+  const r = parseMethodText('Requirements: Free to join');
+  assert.equal(r.requirements, 'Free to join');
+});
+
+test('parseMethodText: parses tips', () => {
+  const r = parseMethodText('Tips: Stack with store sales for maximum savings.');
+  assert.equal(r.tips, 'Stack with store sales for maximum savings.');
+});
+
+test('parseMethodText: parses single link URL', () => {
+  const r = parseMethodText('Link: https://www.rakuten.com');
+  assert.deepEqual(r.links, ['https://www.rakuten.com']);
+});
+
+test('parseMethodText: parses multiple links split by semicolons', () => {
+  const r = parseMethodText('Links: https://www.rakuten.com; https://home.ibotta.com');
+  assert.deepEqual(r.links, ['https://www.rakuten.com', 'https://home.ibotta.com']);
+});
+
+test('parseMethodText: parses from Markdown table rows', () => {
+  const input = '| Title | Ibotta |\n| Tab Type | earn_more |\n| Potential Range | $20–$150/month |';
+  const r = parseMethodText(input);
+  assert.equal(r.title, 'Ibotta');
+  assert.equal(r.tabType, 'earn_more');
+  assert.equal(r.potentialRange, '$20–$150/month');
+});
+
+test('parseMethodText: ignores separator rows', () => {
+  const r = parseMethodText('| --- | --- |');
+  assert.deepEqual(r, {});
+});
+
+test('parseMethodText: returns empty object for empty input', () => {
+  const r = parseMethodText('');
+  assert.deepEqual(r, {});
+});
+
+test('parseMethodText: ignores none/n/a values', () => {
+  const r = parseMethodText('Requirements: none');
+  assert.equal(r.requirements, undefined);
+});
+
+test('parseMethodText: mixed plaintext parses multiple fields', () => {
+  const input = 'Title: Cashback Card\nTab Type: save_more\nPotential Range: 1.5–5% back\nRequirements: Good credit';
+  const r = parseMethodText(input);
+  assert.equal(r.title, 'Cashback Card');
+  assert.equal(r.tabType, 'save_more');
+  assert.equal(r.potentialRange, '1.5–5% back');
+  assert.equal(r.requirements, 'Good credit');
 });
 
 // ── Summary ───────────────────────────────────────────────────

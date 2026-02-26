@@ -1,5 +1,5 @@
 import { supabase } from './src/supabase.js'
-import { parseDealText as _parseDealText } from './src/parser.js'
+import { parseDealText as _parseDealText, parseMethodText as _parseMethodText } from './src/parser.js'
 
 /* ============================================================
    Deal Flow Hub — single-file React app
@@ -551,6 +551,16 @@ function DealCard({deal}){
     }
   };
 
+  const handleCopyLink=(e)=>{
+    e.stopPropagation();
+    if(deal.link){
+      const p=navigator.clipboard?.writeText(deal.link);
+      if(p) p.then(()=>toast?.("Link copied!","ok"))
+              .catch(()=>toast?.("Failed to copy link. Please copy manually.","err"));
+      else toast?.("Failed to copy link. Please copy manually.","err");
+    }
+  };
+
   return(
     <div className="deal-card" onClick={()=>nav("deal",{id:deal.id})}>
       <div className="deal-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,overflow:"hidden"}}>
@@ -598,7 +608,7 @@ function DealCard({deal}){
         <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--bdr)"}}>
           <VoteBar deal={deal} compact={true}/>
         </div>
-        <div style={{marginTop:10,display:"flex",gap:8}}>
+        <div style={{marginTop:10,display:"flex",gap:8,flexWrap:"wrap"}}>
           {(deal.dealType==="SALE"||deal.dealType==="STACKABLE")&&deal.link&&(
             <a className="btn btn-p" href={deal.link} target="_blank" rel="noopener noreferrer" style={{flex:1,justifyContent:"center",fontSize:12,padding:"6px 10px"}} onClick={e=>e.stopPropagation()}>
               <I n="link" s={12}/> Shop Deal
@@ -617,6 +627,11 @@ function DealCard({deal}){
                 </a>
               )}
             </>
+          )}
+          {deal.link&&(
+            <button className="btn btn-d" style={{padding:"6px 10px",fontSize:12}} onClick={handleCopyLink}>
+              <I n="copy" s={12}/> Copy Link
+            </button>
           )}
         </div>
       </div>
@@ -944,6 +959,15 @@ function DealPage(){
     }
   };
 
+  const copyLink=()=>{
+    if(deal.link){
+      const p=navigator.clipboard?.writeText(deal.link);
+      if(p) p.then(()=>toast?.("Link copied!","ok"))
+              .catch(()=>toast?.("Failed to copy link. Please copy manually.","err"));
+      else toast?.("Failed to copy link. Please copy manually.","err");
+    }
+  };
+
   const incrementClicks=async()=>{
     const newClicks=deal.clicks+1;
     const {error}=await supabase.from('deals').update({clicks:newClicks}).eq('id',deal.id);
@@ -1045,6 +1069,11 @@ function DealPage(){
               <I n="link" s={14}/> Go to Product
             </a>
           )}
+          {deal.link&&(
+            <button className="btn btn-d" style={{padding:"10px 22px"}} onClick={copyLink}>
+              <I n="copy" s={14}/> Copy Link
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -1123,6 +1152,7 @@ function DashPage(){
 // ── Deal-text parser: Markdown table or "Field: Value" plaintext ──
 // Thin wrapper so the parser can reference the app's CATS for category matching.
 const parseDealText = (raw) => _parseDealText(raw, CATS);
+const parseMethodText = (raw) => _parseMethodText(raw);
 
 // ── Product image auto-fetch ──────────────────────────────────
 const fetchProductImage = async (url) => {
@@ -1808,6 +1838,20 @@ function MethodForm({initial,onSave,onCancel}){
   });
   const set=(k,v)=>setS(p=>({...p,[k]:v}));
 
+  const [pasteText,setPasteText]=useState('');
+  const handleParse=()=>{
+    const parsed=parseMethodText(pasteText);
+    const count=Object.keys(parsed).length;
+    if(count===0){ toast?.("Could not parse any fields — check the format and try again","err"); return; }
+    const update={...parsed};
+    if(parsed.steps){ update.stepsRaw=parsed.steps.join("\n"); delete update.steps; }
+    if(parsed.links){ update.linksRaw=parsed.links.join("\n"); delete update.links; }
+    setS(p=>({...p,...update}));
+    setPasteText('');
+    if(count<3) toast?.(`Partially filled ${count} field${count>1?"s":""}. Please review.`,"info");
+    else toast?.(`Auto-filled ${count} field${count>1?"s":""}. Review before saving.`,"ok");
+  };
+
   const submit=(e)=>{
     e.preventDefault();
     if(!s.title.trim()){ toast?.("Title is required","err"); return; }
@@ -1820,6 +1864,19 @@ function MethodForm({initial,onSave,onCancel}){
 
   return(
     <form onSubmit={submit} style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:10,padding:12}}>
+        <label style={{fontSize:12,color:"var(--muted)",marginBottom:6,display:"block",fontWeight:600}}>⚡ Paste method info (Markdown table or Field: Value)</label>
+        <textarea
+          value={pasteText}
+          onChange={e=>setPasteText(e.target.value)}
+          rows={4}
+          placeholder={"| Field | Value |\n| Title | Rakuten Cashback |\n| Tab Type | earn_more |\n— or —\nTitle: Rakuten Cashback\nSteps: Sign up; Activate cashback; Shop; Get paid\nPotential Range: $50–$500/year"}
+          style={{fontFamily:"monospace",fontSize:12,marginBottom:8}}
+        />
+        <button type="button" className="btn btn-o" onClick={handleParse} style={{fontSize:13,padding:"6px 14px"}}>
+          <I n="check" s={13}/> Parse &amp; Autofill
+        </button>
+      </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <div>
           <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Title *</label>
