@@ -832,10 +832,14 @@ function DealsPage(){
   const {params,nav}=useRouter();
   const {ageOk,ageReq}=useAge();
 
-  const [dt,setDt]=useState(params.dt||"");
+  const [dealType,setDealType]=useState(params.dt||"ALL");
   const [cat,setCat]=useState(params.cat||"");
   const [stack,setStack]=useState(!!params.stack);
   const [q,setQ]=useState(params.q||"");
+  const [price,setPrice]=useState("ALL");
+  const [discount,setDiscount]=useState("ALL");
+  const [freshness,setFreshness]=useState("ALL");
+  const [sortBy,setSortBy]=useState("POPULAR");
   const [sideOpen,setSideOpen]=useState(false);
   const [allDeals,setAllDeals]=useState([]);
 
@@ -846,11 +850,61 @@ function DealsPage(){
 
   // Bug 5 fixed: sync filter state when params change (e.g. navigating from Home → different filter)
   useEffect(()=>{
-    setDt(params.dt||"");
+    setDealType(params.dt||"ALL");
     setCat(params.cat||"");
     setStack(!!params.stack);
     setQ(params.q||"");
   },[params.dt,params.cat,params.stack,params.q]);
+
+  const isNewToday=(createdAt)=>{
+    const now=new Date();
+    const created=new Date(createdAt);
+    return now.toDateString()===created.toDateString();
+  };
+
+  const isNewThisWeek=(createdAt)=>{
+    const now=new Date();
+    const created=new Date(createdAt);
+    return now-created<=7*24*60*60*1000;
+  };
+
+  const getPopularityScore=(deal)=>(deal.saved||0)*5+(deal.voteUp||0)*3-(deal.voteDown||0)*2+(deal.clicks||0);
+
+  const dealTypeMatches=(d)=>{
+    if(dealType==="ALL") return true;
+    if(dealType==="INSTANT") return ["SALE","STACKABLE"].includes(d.dealType);
+    if(dealType==="PROMO_REQUIRED") return ["PROMO","BOTH"].includes(d.dealType);
+    return true;
+  };
+
+  const priceMatches=(d)=>{
+    const p=d.currentPrice;
+    if(price==="ALL") return true;
+    if(p==null) return false;
+    if(price==="UNDER_20") return p<20;
+    if(price==="UNDER_50") return p<50;
+    if(price==="BETWEEN_50_100") return p>=50&&p<=100;
+    if(price==="OVER_100") return p>=100;
+    return true;
+  };
+
+  const discountMatches=(d)=>{
+    const off=d.percentOff;
+    if(discount==="ALL") return true;
+    if(off==null) return false;
+    if(discount==="OFF_25") return off>=25;
+    if(discount==="OFF_50") return off>=50;
+    if(discount==="OFF_70") return off>=70;
+    if(discount==="OFF_80") return off>=80;
+    return true;
+  };
+
+  const freshnessMatches=(d)=>{
+    if(freshness==="ALL") return true;
+    if(freshness==="TODAY") return isNewToday(d.createdAt);
+    if(freshness==="WEEK") return isNewThisWeek(d.createdAt);
+    return true;
+  };
 
   const pickCat=(id)=>{
     const found=CATS.find(c=>c.id===id);
@@ -863,21 +917,68 @@ function DealsPage(){
 
   const deals=useMemo(()=>{
     let list=allDeals.filter(d=>d.status==="ACTIVE");
-    if(dt)   list=list.filter(d=>d.dealType===dt);
+    list=list.filter(dealTypeMatches);
     if(cat)  list=list.filter(d=>d.cat===cat);
-    if(stack)list=list.filter(d=>["STACKABLE","BOTH"].includes(d.dealType));
-    if(q)    list=list.filter(d=>d.title.toLowerCase().includes(q.toLowerCase())||(d.description||"").toLowerCase().includes(q.toLowerCase()));
+    if(stack)list=list.filter(d=>d.isStackable===true);
+    list=list.filter(priceMatches);
+    list=list.filter(discountMatches);
+    list=list.filter(freshnessMatches);
+    if(q){
+      const needle=q.toLowerCase();
+      list=list.filter(d=>`${d.title||""} ${(d.description||"")}`.toLowerCase().includes(needle));
+    }
+    list=[...list].sort((a,b)=>{
+      if(sortBy==="NEWEST") return new Date(b.createdAt)-new Date(a.createdAt);
+      if(sortBy==="HIGHEST_DISCOUNT") return (b.percentOff??-1)-(a.percentOff??-1);
+      if(sortBy==="LOWEST_PRICE") return (a.currentPrice??Infinity)-(b.currentPrice??Infinity);
+      if(sortBy==="PRICE_HIGH_TO_LOW") return (b.currentPrice??-1)-(a.currentPrice??-1);
+      return getPopularityScore(b)-getPopularityScore(a);
+    });
     return list;
-  },[allDeals,dt,cat,stack,q]);
+  },[allDeals,dealType,cat,stack,price,discount,freshness,q,sortBy]);
 
   const Sidebar=()=>(
     <div id="deals-sidebar" className={`sidebar card${sideOpen?" open":""}`}>
       <div style={{marginBottom:16}}>
         <div style={{fontSize:13,color:"var(--muted)",marginBottom:6}}>Deal Type</div>
-        {["","SALE","PROMO","BOTH","STACKABLE"].map(v=>(
-          <label key={v} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,cursor:"pointer",fontSize:14}}>
-            <input type="radio" name="dt" checked={dt===v} onChange={()=>setDt(v)} style={{width:"auto"}}/>
-            {v||"All Types"}
+        {[
+          {value:"ALL",label:"All"},
+          {value:"INSTANT",label:"Instant Deals"},
+          {value:"PROMO_REQUIRED",label:"Promo Code Required"},
+        ].map(v=>(
+          <label key={v.value} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,cursor:"pointer",fontSize:14}}>
+            <input type="radio" name="dt" checked={dealType===v.value} onChange={()=>setDealType(v.value)} style={{width:"auto"}}/>
+            {v.label}
+          </label>
+        ))}
+      </div>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:13,color:"var(--muted)",marginBottom:6}}>Price</div>
+        {[
+          {value:"ALL",label:"All"},
+          {value:"UNDER_20",label:"Under $20"},
+          {value:"UNDER_50",label:"Under $50"},
+          {value:"BETWEEN_50_100",label:"$50–$100"},
+          {value:"OVER_100",label:"$100+"},
+        ].map(v=>(
+          <label key={v.value} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,cursor:"pointer",fontSize:14}}>
+            <input type="radio" name="price" checked={price===v.value} onChange={()=>setPrice(v.value)} style={{width:"auto"}}/>
+            {v.label}
+          </label>
+        ))}
+      </div>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:13,color:"var(--muted)",marginBottom:6}}>Discount</div>
+        {[
+          {value:"ALL",label:"All"},
+          {value:"OFF_25",label:"25%+"},
+          {value:"OFF_50",label:"50%+"},
+          {value:"OFF_70",label:"70%+"},
+          {value:"OFF_80",label:"80%+"},
+        ].map(v=>(
+          <label key={v.value} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,cursor:"pointer",fontSize:14}}>
+            <input type="radio" name="discount" checked={discount===v.value} onChange={()=>setDiscount(v.value)} style={{width:"auto"}}/>
+            {v.label}
           </label>
         ))}
       </div>
@@ -891,9 +992,22 @@ function DealsPage(){
           </label>
         ))}
       </div>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:13,color:"var(--muted)",marginBottom:6}}>Freshness</div>
+        {[
+          {value:"ALL",label:"All"},
+          {value:"TODAY",label:"New Today"},
+          {value:"WEEK",label:"New This Week"},
+        ].map(v=>(
+          <label key={v.value} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,cursor:"pointer",fontSize:14}}>
+            <input type="radio" name="freshness" checked={freshness===v.value} onChange={()=>setFreshness(v.value)} style={{width:"auto"}}/>
+            {v.label}
+          </label>
+        ))}
+      </div>
       <label style={{display:"flex",alignItems:"center",gap:8,fontSize:14,cursor:"pointer"}}>
         <input type="checkbox" checked={stack} onChange={e=>setStack(e.target.checked)} style={{width:"auto"}}/>
-        Stackable (Promo+)
+        Stackable Only
       </label>
     </div>
   );
@@ -908,12 +1022,21 @@ function DealsPage(){
         </button>
         <div style={{position:"relative",minWidth:200}}>
           <input
-            placeholder="Search deals…"
+            placeholder="Search deals, brands, products…"
             value={q}
             onChange={e=>setQ(e.target.value)}
             style={{paddingLeft:36}}
           />
           <I n="search" s={14} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}/>
+        </div>
+        <div style={{minWidth:190}}>
+          <select value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+            <option value="POPULAR">Most Popular</option>
+            <option value="NEWEST">Newest</option>
+            <option value="HIGHEST_DISCOUNT">Highest Discount</option>
+            <option value="LOWEST_PRICE">Lowest Price</option>
+            <option value="PRICE_HIGH_TO_LOW">Price: High to Low</option>
+          </select>
         </div>
       </div>
       <div className="deals-layout">
