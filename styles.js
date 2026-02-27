@@ -834,10 +834,12 @@ function DealsPage(){
 
   const normalizeDt=(dt)=>{
     if(!dt) return "ALL";
-    if(dt==="SALE"||dt==="STACKABLE") return "INSTANT";
-    if(dt==="PROMO") return "PROMO_REQUIRED";
-    if(dt==="BOTH") return "ALL";
-    return dt;
+    const v=String(dt).toUpperCase();
+    if(v==="SALE"||v==="STACKABLE") return "INSTANT";
+    if(v==="PROMO") return "PROMO_REQUIRED";
+    if(v==="BOTH") return "ALL";
+    if(v==="INSTANT"||v==="PROMO_REQUIRED"||v==="ALL") return v;
+    return "ALL";
   };
 
   const [dealType,setDealType]=useState(normalizeDt(params.dt));
