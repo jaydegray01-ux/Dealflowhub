@@ -111,7 +111,8 @@ const tu = (d)=>{
 };
 
 const fmtDate = (s) => new Date(s).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
-export const PRIZE_AMOUNT_USD = 10;
+const PRIZE_AMOUNT_USD = 10;
+const PRIZE_AMOUNT_FORMATTED = `$${PRIZE_AMOUNT_USD}`;
 
 // ── Seed data ────────────────────────────────────────────────
 const CATS = [
@@ -711,10 +712,9 @@ function VoteBar({deal, onVoted, compact=false}){
 function RaffleBanner(){
   const {nav}=useRouter();
   const [open,setOpen]=useState(false);
-  const prizeAmount = `$${PRIZE_AMOUNT_USD}`;
   return(
     <div style={{background:"linear-gradient(90deg,#4338ca,#7c3aed)",color:"#fff",padding:"12px 24px",textAlign:"center",fontSize:14}}>
-      <strong>🎁 Refer friends & family for a chance to win {prizeAmount} cash.</strong> Winner picked every week.{" "}
+      <strong>🎁 Refer friends & family for a chance to win {PRIZE_AMOUNT_FORMATTED} cash.</strong> Winner picked every week.{" "}
       <span
         style={{cursor:"pointer",textDecoration:"underline",color:"#fde68a",fontWeight:700}}
         onClick={()=>setOpen(o=>!o)}
@@ -727,7 +727,7 @@ function RaffleBanner(){
           <p><strong>No purchase necessary</strong> to enter or win.</p>
           <p><strong>How to enter:</strong> Share your unique referral link from the Raffle page. When someone signs up using your link, confirms their email, and logs in, you both get +1 raffle entry for the current week.</p>
           <p><strong>Winner selection:</strong> One winner is randomly selected every Sunday at 11:59 PM CT from all valid entries for that week.</p>
-          <p><strong>How winner is contacted:</strong> By email within 24 hours of the drawing. Winner must respond within 7 days to claim the {prizeAmount} prize (via PayPal or Venmo).</p>
+          <p><strong>How winner is contacted:</strong> By email within 24 hours of the drawing. Winner must respond within 7 days to claim the {PRIZE_AMOUNT_FORMATTED} prize (via PayPal or Venmo).</p>
           <p><strong>Void where prohibited by law.</strong></p>
           <p style={{fontSize:11,opacity:.8,marginTop:8}}>This is a general summary. Please review the <span style={{textDecoration:"underline",cursor:"pointer"}} onClick={()=>nav("raffle")}>Full Official Rules</span> for complete details. Deal Flow Hub reserves the right to modify or cancel the promotion at any time.</p>
         </div>
@@ -2236,8 +2236,6 @@ function RafflePage(){
       .catch(()=>toast?.("Could not copy — please copy the link manually.","err"));
   };
 
-  const prizeAmount = `$${PRIZE_AMOUNT_USD}`;
-
   return(
     <div className="page" style={{maxWidth:720}}>
 
@@ -2287,7 +2285,7 @@ function RafflePage(){
           To enter without referring anyone, send your full name and email to <a href="mailto:raffle@dealflowhub.xyz" style={{color:"var(--p)",textDecoration:"underline"}}>raffle@dealflowhub.xyz</a> with the subject line 'Weekly Raffle Entry.' Limit one (1) free entry per person per weekly period.
         </>],
         ["Referral Entries","Share your unique referral link from this page. When a new user signs up via your link, confirms their email, and logs in for the first time, both you and the new user each receive one (1) raffle entry for the current weekly period. The bonus is applied automatically on the referee's first login after email confirmation. Self-referrals are not permitted. Each person may only be referred once. Fraudulent entries will be disqualified."],
-        ["Prize",`One (1) winner per weekly period receives ${prizeAmount} USD via PayPal or Venmo. No cash equivalent substitution. Prize is non-transferable. Winner is responsible for all applicable taxes.`],
+        ["Prize",`One (1) winner per weekly period receives ${PRIZE_AMOUNT_FORMATTED} USD via PayPal or Venmo. No cash equivalent substitution. Prize is non-transferable. Winner is responsible for all applicable taxes.`],
         ["Winner Selection","One winner is randomly selected from all valid entries received during the weekly period. Odds of winning depend on total entries received."],
         ["Winner Notification","Winners are contacted by email within 24 hours of selection and must respond within 7 calendar days to claim the prize. Unclaimed prizes will result in a new drawing."],
         ["Privacy","Information collected for this sweepstakes will be used solely to administer the drawing and will not be sold to third parties except as required by law."],
