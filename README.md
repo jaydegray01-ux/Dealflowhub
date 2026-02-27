@@ -69,6 +69,16 @@ WHERE email = 'you@example.com';
 
 Replace `you@example.com` with your actual email. You only need to do this once.
 
+> **Tip:** If you see an error like `column "email" does not exist`, run migration
+> `008_add_email_to_profiles.sql` first (see the `supabase/migrations/` folder).
+> Alternatively, look up your user UUID in **Authentication → Users** and run:
+>
+> ```sql
+> UPDATE profiles
+> SET role = 'ADMIN'
+> WHERE id = 'your-user-uuid';
+> ```
+
 ---
 
 ### Step 5 — Configure Auth redirect URLs
