@@ -43,6 +43,9 @@ Open the **SQL Editor** in your Supabase Dashboard (**SQL Editor → New query**
 | 3 | `supabase/migrations/003_categories_table.sql` | Creates and seeds the `categories` table. |
 | 4 | `supabase/migrations/004_price_fields.sql` | Adds `current_price`, `original_price`, and `percent_off` columns to `deals`. |
 | 5 | `supabase/migrations/005_methods_table.sql` | Creates the `methods` table (Save & Earn) and seeds the three built-in methods. |
+| 6 | `supabase/migrations/006_security_fixes.sql` | Adds the `is_admin()` helper function, enables RLS on `categories`, fixes recursive admin policies, and adds the `increment_deal_clicks` RPC. |
+| 7 | `supabase/migrations/007_performance_fixes.sql` | Optimises the `is_admin()` function and merges duplicate permissive SELECT policies on `profiles`, `deals`, `referrals`, and `raffle_entries`. |
+| 8 | `supabase/migrations/008_add_email_to_profiles.sql` | Adds the `email` column to `profiles` (if missing) and backfills it from `auth.users`. **Required for the Admin Dashboard to look up users by email.** |
 
 > **Tip:** Every migration is safe to re-run — `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, and `DROP POLICY IF EXISTS` guards prevent duplicate-object errors.
 
@@ -221,8 +224,8 @@ This is identical to `supabase/migrations/005_methods_table.sql`. It is safe to 
 |---|---|---|
 | Create Supabase project | ✅ Yes | One-time |
 | Set env vars (`.env` or Vercel) | ✅ Yes | One-time |
-| Run SQL migrations (000–005) | ✅ Yes | Paste each file into the SQL editor in order |
-| Grant `role = 'ADMIN'` to your account | ✅ Yes | One SQL UPDATE per admin user |
+| Run SQL migrations (000–008) | ✅ Yes | Paste each file into the SQL editor in order |
+| Grant `role = 'ADMIN'` to your account | ✅ Yes | One SQL UPDATE per admin user — see Step 4 |
 | Configure Auth redirect URLs | ✅ Yes | See `docs/supabase-auth.md` |
 | New users getting a profile row | 🤖 Automatic | The trigger in `000_profiles_table.sql` handles this |
 | Save & Earn seed data | 🤖 Automatic | Inserted by `005_methods_table.sql` if the table is empty |
