@@ -930,8 +930,12 @@ function DealsPage(){
       const needle=q.toLowerCase();
       list=list.filter(d=>`${d.title||""} ${(d.description||"")}`.toLowerCase().includes(needle));
     }
+    const getCreatedAtTime=(value)=>{
+      const t=new Date(value).getTime();
+      return Number.isNaN(t)?0:t;
+    };
     list=[...list].sort((a,b)=>{
-      if(sortBy==="NEWEST") return new Date(b.createdAt)-new Date(a.createdAt);
+      if(sortBy==="NEWEST") return getCreatedAtTime(b.createdAt)-getCreatedAtTime(a.createdAt);
       if(sortBy==="HIGHEST_DISCOUNT") return (b.percentOff??-1)-(a.percentOff??-1);
       if(sortBy==="LOWEST_PRICE") return (a.currentPrice??Infinity)-(b.currentPrice??Infinity);
       if(sortBy==="PRICE_HIGH_TO_LOW") return (b.currentPrice??-1)-(a.currentPrice??-1);
