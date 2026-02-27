@@ -832,7 +832,15 @@ function DealsPage(){
   const {params,nav}=useRouter();
   const {ageOk,ageReq}=useAge();
 
-  const [dealType,setDealType]=useState(params.dt||"ALL");
+  const normalizeDt=(dt)=>{
+    if(!dt) return "ALL";
+    if(dt==="SALE"||dt==="STACKABLE") return "INSTANT";
+    if(dt==="PROMO") return "PROMO_REQUIRED";
+    if(dt==="BOTH") return "ALL";
+    return dt;
+  };
+
+  const [dealType,setDealType]=useState(normalizeDt(params.dt));
   const [cat,setCat]=useState(params.cat||"");
   const [stack,setStack]=useState(!!params.stack);
   const [q,setQ]=useState(params.q||"");
@@ -850,7 +858,7 @@ function DealsPage(){
 
   // Bug 5 fixed: sync filter state when params change (e.g. navigating from Home → different filter)
   useEffect(()=>{
-    setDealType(params.dt||"ALL");
+    setDealType(normalizeDt(params.dt));
     setCat(params.cat||"");
     setStack(!!params.stack);
     setQ(params.q||"");
@@ -918,6 +926,11 @@ function DealsPage(){
     }
   };
 
+  const getCreatedAtTime=(value)=>{
+    const t=new Date(value).getTime();
+    return Number.isNaN(t)?0:t;
+  };
+
   const deals=useMemo(()=>{
     let list=allDeals.filter(d=>d.status==="ACTIVE");
     list=list.filter(dealTypeMatches);
@@ -931,7 +944,7 @@ function DealsPage(){
       list=list.filter(d=>`${d.title||""} ${(d.description||"")}`.toLowerCase().includes(needle));
     }
     list=[...list].sort((a,b)=>{
-      if(sortBy==="NEWEST") return new Date(b.createdAt)-new Date(a.createdAt);
+      if(sortBy==="NEWEST") return getCreatedAtTime(b.createdAt)-getCreatedAtTime(a.createdAt);
       if(sortBy==="HIGHEST_DISCOUNT") return (b.percentOff??-1)-(a.percentOff??-1);
       if(sortBy==="LOWEST_PRICE") return (a.currentPrice??Infinity)-(b.currentPrice??Infinity);
       if(sortBy==="PRICE_HIGH_TO_LOW") return (b.currentPrice??-1)-(a.currentPrice??-1);
@@ -1033,7 +1046,7 @@ function DealsPage(){
           <I n="search" s={14} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}/>
         </div>
         <div style={{minWidth:190}}>
-          <select value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+          <select aria-label="Sort deals" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
             <option value="POPULAR">Most Popular</option>
             <option value="NEWEST">Newest</option>
             <option value="HIGHEST_DISCOUNT">Highest Discount</option>
