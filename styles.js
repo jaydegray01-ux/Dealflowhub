@@ -832,7 +832,17 @@ function DealsPage(){
   const {params,nav}=useRouter();
   const {ageOk,ageReq}=useAge();
 
-  const [dealType,setDealType]=useState(params.dt||"ALL");
+  const normalizeDt=(dt)=>{
+    if(!dt) return "ALL";
+    const v=String(dt).toUpperCase();
+    if(v==="SALE"||v==="STACKABLE") return "INSTANT";
+    if(v==="PROMO") return "PROMO_REQUIRED";
+    if(v==="BOTH") return "ALL";
+    if(v==="INSTANT"||v==="PROMO_REQUIRED"||v==="ALL") return v;
+    return "ALL";
+  };
+
+  const [dealType,setDealType]=useState(normalizeDt(params.dt));
   const [cat,setCat]=useState(params.cat||"");
   const [stack,setStack]=useState(!!params.stack);
   const [q,setQ]=useState(params.q||"");
@@ -850,7 +860,7 @@ function DealsPage(){
 
   // Bug 5 fixed: sync filter state when params change (e.g. navigating from Home → different filter)
   useEffect(()=>{
-    setDealType(params.dt||"ALL");
+    setDealType(normalizeDt(params.dt));
     setCat(params.cat||"");
     setStack(!!params.stack);
     setQ(params.q||"");
@@ -916,6 +926,11 @@ function DealsPage(){
     } else {
       setCat(id);
     }
+  };
+
+  const getCreatedAtTime=(value)=>{
+    const t=new Date(value).getTime();
+    return Number.isNaN(t)?0:t;
   };
 
   const deals=useMemo(()=>{
@@ -1037,7 +1052,7 @@ function DealsPage(){
           <I n="search" s={14} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}/>
         </div>
         <div style={{minWidth:190}}>
-          <select value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+          <select aria-label="Sort deals" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
             <option value="POPULAR">Most Popular</option>
             <option value="NEWEST">Newest</option>
             <option value="HIGHEST_DISCOUNT">Highest Discount</option>
