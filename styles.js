@@ -865,7 +865,10 @@ function DealsPage(){
   const isNewThisWeek=(createdAt)=>{
     const now=new Date();
     const created=new Date(createdAt);
-    return now-created<=7*24*60*60*1000;
+    const createdTime=created.getTime();
+    if(Number.isNaN(createdTime)) return false;
+    const diff=now-created;
+    return diff>=0&&diff<=7*24*60*60*1000;
   };
 
   const getPopularityScore=(deal)=>(deal.saved||0)*5+(deal.voteUp||0)*3-(deal.voteDown||0)*2+(deal.clicks||0);
