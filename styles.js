@@ -110,6 +110,17 @@ const tu = (d)=>{
   return days>0?`${days}d ${hrs}h left`:`${hrs}h left`;
 };
 
+const timeSince = (d) => {
+  if (!d) return "Added recently";
+  const diffMs = Date.now() - new Date(d).getTime();
+  if (Number.isNaN(diffMs) || diffMs < 0) return "Added recently";
+  const hours = Math.floor(diffMs / 36e5);
+  if (hours < 1) return "Added less than 1 hour ago";
+  if (hours < 24) return `Added ${hours} hour${hours===1?"":"s"} ago`;
+  const days = Math.floor(hours / 24);
+  return `Added ${days} day${days===1?"":"s"} ago`;
+};
+
 const fmtDate = (s) => new Date(s).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
 export const PRIZE_AMOUNT_USD = 10;
 
@@ -151,6 +162,8 @@ const fromDb = (d) => ({
   status:           d.status || 'ACTIVE',
   imageUrl:         d.image_url || '',
   stackInstructions:d.stack_instructions || '',
+  isStackable:      d.is_stackable ?? ["STACKABLE","BOTH"].includes(d.deal_type),
+  stackOptions:     Array.isArray(d.stack_options) ? d.stack_options : [],
   currentPrice:     d.current_price  ?? null,
   originalPrice:    d.original_price ?? null,
   percentOff:       d.percent_off    ?? null,
@@ -172,6 +185,8 @@ const toDb = (d) => ({
   status:            d.status || 'ACTIVE',
   image_url:         d.imageUrl || '',
   stack_instructions:d.stackInstructions || '',
+  is_stackable:      d.isStackable ?? ["STACKABLE","BOTH"].includes(d.dealType),
+  stack_options:     d.stackOptions ?? [],
   current_price:     d.currentPrice  ?? null,
   original_price:    d.originalPrice ?? null,
   percent_off:       d.percentOff    ?? null,
@@ -539,8 +554,15 @@ function DealCard({deal}){
   const {nav}=useRouter();
   const toast=useToast();
   const [imgErr,setImgErr]=useState(false);
+  const [,setNowTick]=useState(Date.now());
   const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
+  const isStackable = deal.isStackable || deal.dealType==="STACKABLE" || deal.dealType==="BOTH";
   const fallbackEmoji=deal.dealType==="SALE"?"💸":deal.dealType==="PROMO"?"🎫":"🎁";
+
+  useEffect(()=>{
+    const id = setInterval(()=>setNowTick(Date.now()), 60000);
+    return ()=>clearInterval(id);
+  },[]);
 
   const handleCopyCode=(e)=>{
     e.stopPropagation();
@@ -581,11 +603,15 @@ function DealCard({deal}){
             {DT_LABEL[deal.dealType]||deal.dealType}
           </span>
           {deal.featured&&<span className="tag tag-warn"><I n="star" s={11}/> Featured</span>}
-          {(deal.dealType==="STACKABLE"||deal.dealType==="BOTH")&&(
-            <span className="tag tag-ok">💰 Stack</span>
+          {isStackable&&(
+            <span className="tag tag-ok">Stackable</span>
           )}
         </div>
         <h3 style={{fontSize:15,marginBottom:6,lineHeight:1.3}}>{deal.title}</h3>
+        <p style={{
+          fontSize:13,color:"var(--muted)",marginBottom:10,lineHeight:1.4,
+          display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",minHeight:"2.8em"
+        }}>{deal.description}</p>
         {(deal.currentPrice != null || deal.originalPrice != null) && (
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
             {deal.currentPrice != null && (
@@ -605,12 +631,15 @@ function DealCard({deal}){
             )}
           </div>
         )}
-        <p style={{fontSize:13,color:"var(--muted)",marginBottom:10,lineHeight:1.4}}>{deal.description}</p>
         <div style={{display:"flex",gap:12,fontSize:12,color:"var(--muted)"}}>
+          <span><I n="clock" s={11}/> {timeSince(deal.createdAt)}</span>
           <span><I n="clock" s={11}/> {tu(deal.expires)}</span>
-          <span><I n="eye" s={11}/> {deal.clicks}</span>
-          <span><I n="star" s={11}/> {deal.saved}</span>
         </div>
+        {isStackable && deal.stackOptions?.length>0 && (
+          <p style={{fontSize:12,color:"var(--muted)",marginTop:8}}>
+            {deal.stackOptions.slice(0,2).join(" • ")}
+          </p>
+        )}
         <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--bdr)"}}>
           <VoteBar deal={deal} compact={true}/>
         </div>
@@ -989,6 +1018,7 @@ function DealPage(){
   };
 
   const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
+  const isStackable = deal.isStackable || deal.dealType==="STACKABLE" || deal.dealType==="BOTH";
 
   return(
     <div className="page" style={{maxWidth:700}}>
@@ -1036,16 +1066,22 @@ function DealPage(){
         </div>
 
         <div style={{display:"flex",gap:16,marginBottom:24,flexWrap:"wrap",fontSize:14,color:"var(--muted)"}}>
+          <span><I n="clock" s={13}/> {timeSince(deal.createdAt)}</span>
           <span><I n="clock" s={13}/> {tu(deal.expires)}</span>
-          <span><I n="eye" s={13}/> {deal.clicks} clicks</span>
-          <span><I n="star" s={13}/> {deal.saved} saved</span>
           <span>Expires {fmtDate(deal.expires)}</span>
         </div>
 
-        {(deal.dealType==="STACKABLE"||deal.dealType==="BOTH")&&deal.stackInstructions&&(
+        {isStackable&&deal.stackInstructions&&(
           <div style={{background:"var(--surf2)",border:"1.5px solid var(--ok)",borderRadius:10,padding:"14px 18px",marginBottom:16}}>
             <div style={{fontWeight:700,fontSize:13,color:"var(--ok)",marginBottom:6}}>💰 Cashback Stack Instructions</div>
             <p style={{fontSize:14,color:"var(--txt)",lineHeight:1.6}}>{deal.stackInstructions}</p>
+          </div>
+        )}
+
+        {isStackable && deal.stackOptions?.length>0 && (
+          <div style={{background:"var(--surf2)",border:"1.5px solid var(--bdr)",borderRadius:10,padding:"14px 18px",marginBottom:16}}>
+            <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>Can be stacked with</div>
+            <p style={{fontSize:14,color:"var(--muted)",lineHeight:1.6}}>{deal.stackOptions.join(" • ")}</p>
           </div>
         )}
 
@@ -1207,6 +1243,7 @@ function DealForm({initial,onSave,onCancel}){
     title:"",description:"",link:"https://",dealType:"SALE",code:"",
     cat:"electronics",expires:ad(7).slice(0,10),featured:false,status:"ACTIVE",
     imageUrl:"", stackInstructions:"",
+    isStackable:false, stackOptions:[],
     currentPrice: null, originalPrice: null, percentOff: null,
   });
 
@@ -1258,8 +1295,8 @@ function DealForm({initial,onSave,onCancel}){
       toast?.("Promo code is required for Promo and Sale+Code deal types","err");
       return;
     }
-    if(s.dealType==="STACKABLE"&&!(s.stackInstructions||"").trim()){
-      toast?.("Stack instructions are required for Stackable deal types","err");
+    if((s.isStackable||s.dealType==="STACKABLE")&&!(s.stackInstructions||"").trim()){
+      toast?.("Stack instructions are required for stackable deals","err");
       return;
     }
     onSave(s);
@@ -1374,7 +1411,7 @@ Deal Type: SALE"
           <input value={s.code} onChange={e=>set("code",e.target.value)} placeholder="e.g. SAVE20"/>
         </div>
       </div>
-      {(s.dealType==="STACKABLE"||s.dealType==="BOTH")&&(
+      {(s.isStackable||s.dealType==="STACKABLE"||s.dealType==="BOTH")&&(
         <div>
           <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>
             Stack Instructions * <span style={{fontWeight:400}}>(required for stackable deals)</span>
@@ -1384,6 +1421,22 @@ Deal Type: SALE"
             onChange={e=>set("stackInstructions",e.target.value)}
             rows={2}
             placeholder="e.g. Activate Rakuten before clicking through for 5% back on top of the sale price."
+          />
+        </div>
+      )}
+      <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
+        <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:14}}>
+          <input type="checkbox" checked={!!s.isStackable} onChange={e=>set("isStackable",e.target.checked)} style={{width:"auto"}}/>
+          Stackable
+        </label>
+      </div>
+      {(s.isStackable||s.dealType==="STACKABLE"||s.dealType==="BOTH")&&(
+        <div>
+          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Stack Options (comma separated)</label>
+          <input
+            value={(s.stackOptions||[]).join(", ")}
+            onChange={e=>set("stackOptions",e.target.value.split(",").map(v=>v.trim()).filter(Boolean))}
+            placeholder="Cashback, Rewards Points, Free Shipping"
           />
         </div>
       )}
