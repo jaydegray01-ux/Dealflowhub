@@ -2169,6 +2169,9 @@ function Footer(){
       an affiliate advertising program designed to provide a means for sites to earn
       advertising fees by advertising and linking to Amazon.com. As an Amazon Associate,
       we earn from qualifying purchases at no extra cost to you.
+      <div style={{marginTop:10}}>
+        <a href="/privacy" style={{color:"var(--p2)",textDecoration:"underline"}}>Privacy Policy</a>
+      </div>
     </footer>
   );
 }
