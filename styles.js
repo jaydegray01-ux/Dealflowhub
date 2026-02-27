@@ -1037,7 +1037,7 @@ function DealsPage(){
           <I n="search" s={14} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}/>
         </div>
         <div style={{minWidth:190}}>
-          <select value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+          <select aria-label="Sort deals" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
             <option value="POPULAR">Most Popular</option>
             <option value="NEWEST">Newest</option>
             <option value="HIGHEST_DISCOUNT">Highest Discount</option>
