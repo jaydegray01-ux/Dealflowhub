@@ -91,7 +91,7 @@ const ICONS = {
   tag:"🎫", sale:"💸", fire:"🔥", clock:"⏰", eye:"👁️",
   copy:"📋", link:"🔗", check:"✅", star:"⭐", lock:"🔒",
   user:"👤", search:"🔍", filter:"⚡", plus:"➕", trash:"🗑️",
-  edit:"✏️", up:"🔺", chart:"📊", gift:"🎁", shield:"🛡️",
+  edit:"✏️", up:"🔺", chart:"📊", gift:"🎁", shield:"🛡️", hourglass:"⌛",
 };
 const I = ({n, s=16, c, style})=>
   <span style={{fontSize:s, color:c, lineHeight:1, ...style}}>{ICONS[n]||"•"}</span>;
@@ -556,7 +556,7 @@ function DealCard({deal}){
   const [imgErr,setImgErr]=useState(false);
   const [,setNowTick]=useState(Date.now());
   const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
-  const isStackable = deal.isStackable || deal.dealType==="STACKABLE" || deal.dealType==="BOTH";
+  const isStackable = deal.isStackable;
   const fallbackEmoji=deal.dealType==="SALE"?"💸":deal.dealType==="PROMO"?"🎫":"🎁";
 
   useEffect(()=>{
@@ -603,7 +603,7 @@ function DealCard({deal}){
             {DT_LABEL[deal.dealType]||deal.dealType}
           </span>
           {deal.featured&&<span className="tag tag-warn"><I n="star" s={11}/> Featured</span>}
-          {isStackable&&(
+          {isStackable && deal.dealType !== "STACKABLE" && (
             <span className="tag tag-ok">Stackable</span>
           )}
         </div>
@@ -633,7 +633,7 @@ function DealCard({deal}){
         )}
         <div style={{display:"flex",gap:12,fontSize:12,color:"var(--muted)"}}>
           <span><I n="clock" s={11}/> {timeSince(deal.createdAt)}</span>
-          <span><I n="clock" s={11}/> {tu(deal.expires)}</span>
+          <span><I n="fire" s={11}/> {tu(deal.expires)}</span>
         </div>
         {isStackable && deal.stackOptions?.length>0 && (
           <p style={{fontSize:12,color:"var(--muted)",marginTop:8}}>
@@ -944,6 +944,12 @@ function DealPage(){
   const [loading,setLoading]=useState(true);
   const [revealed,setRevealed]=useState(false);
   const [imgErr,setImgErr]=useState(false);
+  const [,setNowTick]=useState(Date.now());
+
+  useEffect(()=>{
+    const id = setInterval(()=>setNowTick(Date.now()), 60000);
+    return ()=>clearInterval(id);
+  },[]);
 
   useEffect(()=>{
     setLoading(true);
@@ -1018,7 +1024,7 @@ function DealPage(){
   };
 
   const typeTag={SALE:"tag-ok",PROMO:"tag-p",BOTH:"tag-warn",STACKABLE:"tag-ok"};
-  const isStackable = deal.isStackable || deal.dealType==="STACKABLE" || deal.dealType==="BOTH";
+  const isStackable = deal.isStackable;
 
   return(
     <div className="page" style={{maxWidth:700}}>
@@ -1067,7 +1073,7 @@ function DealPage(){
 
         <div style={{display:"flex",gap:16,marginBottom:24,flexWrap:"wrap",fontSize:14,color:"var(--muted)"}}>
           <span><I n="clock" s={13}/> {timeSince(deal.createdAt)}</span>
-          <span><I n="clock" s={13}/> {tu(deal.expires)}</span>
+          <span><I n="hourglass" s={13}/> {tu(deal.expires)}</span>
           <span>Expires {fmtDate(deal.expires)}</span>
         </div>
 
@@ -1295,7 +1301,7 @@ function DealForm({initial,onSave,onCancel}){
       toast?.("Promo code is required for Promo and Sale+Code deal types","err");
       return;
     }
-    if((s.isStackable||s.dealType==="STACKABLE")&&!(s.stackInstructions||"").trim()){
+    if((s.isStackable||s.dealType==="STACKABLE"||s.dealType==="BOTH")&&!(s.stackInstructions||"").trim()){
       toast?.("Stack instructions are required for stackable deals","err");
       return;
     }
