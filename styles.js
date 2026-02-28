@@ -819,7 +819,16 @@ function RaffleBanner(){
 // ── HomePage ──────────────────────────────────────────────────
 function HomePage(){
   const {nav}=useRouter();
+  const {ageOk,ageReq}=useAge();
   const [featured,setFeatured]=useState([]);
+
+  const handleCategoryClick=(category)=>{
+    if(category.adult && !ageOk){
+      ageReq(()=>nav("deals",{cat:category.id}));
+      return;
+    }
+    nav("deals",{cat:category.id});
+  };
 
   useEffect(()=>{
     supabase.from('deals').select('*')
@@ -855,7 +864,7 @@ function HomePage(){
           <div
             key={c.id}
             className="cat-card"
-            onClick={()=>nav("deals",{cat:c.id})}
+            onClick={()=>handleCategoryClick(c)}
           >
             <span style={{fontSize:28}}>{c.emoji}</span>
             <div style={{fontSize:13,fontWeight:600}}>{c.label}</div>
