@@ -1984,7 +1984,7 @@ function BulkAddDealsPage(){
     const file=e.target.files?.[0];
     if(!file) return;
     const reader=new FileReader();
-    reader.onload=()=>setCsvText(String(reader.result||''));
+    reader.onload=()=>{setCsvText(String(reader.result||''));setPreviewRows([]);};
     reader.readAsText(file);
   };
 
@@ -2033,7 +2033,7 @@ function BulkAddDealsPage(){
               <textarea
                 rows={10}
                 value={csvText}
-                onChange={e=>setCsvText(e.target.value)}
+                onChange={e=>{setCsvText(e.target.value);setPreviewRows([]);}}
                 placeholder={BULK_CSV_COLUMNS.join(',')}
                 style={{resize:'vertical'}}
               />
