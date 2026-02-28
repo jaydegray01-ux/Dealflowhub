@@ -1961,7 +1961,7 @@ const validateBulkRow = ({index,row}) => {
       status: 'ACTIVE',
       featured: false,
     },
-    createdAt: createdAt.toISOString(),
+    createdAt: Number.isNaN(createdAt.getTime()) ? null : createdAt.toISOString(),
   };
 };
 
