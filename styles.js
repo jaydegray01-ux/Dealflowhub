@@ -126,20 +126,20 @@ export const PRIZE_AMOUNT_USD = 10;
 
 // ── Seed data ────────────────────────────────────────────────
 const CATS = [
-  {id:"adult-products",           label:"Adult Products 🔞",        emoji:"🔞", adult:true },
   {id:"electronics",              label:"Electronics",              emoji:"📱", adult:false},
-  {id:"beauty-and-personal-care", label:"Beauty & personal care",   emoji:"💄", adult:false},
-  {id:"baby",                     label:"Baby",                     emoji:"👶", adult:false},
-  {id:"home-and-kitchen",         label:"Home & kitchen",           emoji:"🏠", adult:false},
-  {id:"arts-and-crafts",          label:"Arts and crafts",          emoji:"🎨", adult:false},
-  {id:"tools-and-home-improvement",label:"Tools and home improvement",emoji:"🔧", adult:false},
-  {id:"pet-supplies",             label:"Pet supplies",             emoji:"🐾", adult:false},
-  {id:"toys-and-games",           label:"Toys and games",           emoji:"🎮", adult:false},
-  {id:"health-and-household",     label:"Health & household",       emoji:"💊", adult:false},
-  {id:"automotive",               label:"Automotive",               emoji:"🚗", adult:false},
+  {id:"home-and-kitchen",         label:"Home & Kitchen",           emoji:"🏠", adult:false},
   {id:"clothing",                 label:"Clothing",                 emoji:"👗", adult:false},
-  {id:"sports-and-outdoors",      label:"Sports & outdoors",        emoji:"⛺", adult:false},
+  {id:"beauty-and-personal-care", label:"Beauty & Personal Care",   emoji:"💄", adult:false},
+  {id:"health-and-household",     label:"Health & Wellness",        emoji:"💊", adult:false},
+  {id:"tools-and-home-improvement",label:"Tools & Home Improvement",emoji:"🔧", adult:false},
+  {id:"baby",                     label:"Baby & Kids",              emoji:"👶", adult:false},
+  {id:"toys-and-games",           label:"Toys & Games",             emoji:"🎮", adult:false},
+  {id:"sports-and-outdoors",      label:"Sports & Outdoors",        emoji:"⛺", adult:false},
+  {id:"automotive",               label:"Automotive",               emoji:"🚗", adult:false},
+  {id:"pet-supplies",             label:"Pet Supplies",             emoji:"🐾", adult:false},
+  {id:"arts-and-crafts",          label:"Arts, Crafts & DIY",       emoji:"🎨", adult:false},
   {id:"other",                    label:"Other",                    emoji:"🏷️", adult:false},
+  {id:"adult-products",           label:"Adult Products",           emoji:"🔞", adult:true },
 ];
 
 // ── DB field mapping ──────────────────────────────────────────
