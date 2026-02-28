@@ -142,56 +142,8 @@ const CATS = [
   {id:"adult-products",           label:"Adult Products",           emoji:"🔞", adult:true },
 ];
 
-const CATEGORY_LOOKUP = CATS.reduce((acc,cat)=>{
-  acc[cat.id]=cat.id;
-  acc[cat.label.toLowerCase()]=cat.id;
-  return acc;
-},{});
-
-const CATEGORY_ALIASES = {
-  electronics: "electronics",
-  tech: "electronics",
-  "home": "home-and-kitchen",
-  "home kitchen": "home-and-kitchen",
-  kitchen: "home-and-kitchen",
-  clothing: "clothing",
-  apparel: "clothing",
-  fashion: "clothing",
-  beauty: "beauty-and-personal-care",
-  "personal care": "beauty-and-personal-care",
-  "health": "health-and-household",
-  wellness: "health-and-household",
-  tools: "tools-and-home-improvement",
-  "home improvement": "tools-and-home-improvement",
-  baby: "baby",
-  kids: "baby",
-  toys: "toys-and-games",
-  games: "toys-and-games",
-  sports: "sports-and-outdoors",
-  outdoors: "sports-and-outdoors",
-  automotive: "automotive",
-  cars: "automotive",
-  pets: "pet-supplies",
-  "pet supplies": "pet-supplies",
-  crafts: "arts-and-crafts",
-  diy: "arts-and-crafts",
-  other: "other",
-  adult: "adult-products",
-  "adult products": "adult-products",
-};
-
-const normalizeCategory = (raw)=>{
-  if(!raw) return null;
-  const cleaned=String(raw).trim().toLowerCase();
-  if(!cleaned) return null;
-  const normalizedKey=cleaned.replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
-  const canonicalById=normalizedKey.replace(/\s+/g,'-');
-  return CATEGORY_LOOKUP[cleaned]
-    || CATEGORY_LOOKUP[canonicalById]
-    || CATEGORY_LOOKUP[normalizedKey]
-    || CATEGORY_ALIASES[normalizedKey]
-    || null;
-};
+const ADULT_OK_STORAGE_KEY = "dfh_adult_ok";
+const isAdultCategory = (catId)=>CATS.some(c=>c.id===catId&&c.adult);
 
 // ── DB field mapping ──────────────────────────────────────────
 const fromDb = (d) => ({
@@ -362,15 +314,27 @@ const AgeCtx = createContext(null);
 const useAge = () => useContext(AgeCtx);
 
 function AgeProvider({children}){
-  const [ok,setOk]=useState(false);
+  const [ok,setOk]=useState(()=>localStorage.getItem(ADULT_OK_STORAGE_KEY)==="true");
   const [show,setShow]=useState(false);
-  const [cb,setCb]=useState(null);
+  const [handlers,setHandlers]=useState({onConfirm:null,onDeny:null});
 
-  const ageReq=(callback)=>{ setCb(()=>callback); setShow(true); };
+  const ageReq=(onConfirm,onDeny=null)=>{
+    setHandlers({onConfirm,onDeny});
+    setShow(true);
+  };
 
-  // Bug 7 fixed: call cb() before setCb(null)
-  const confirm=()=>{ setOk(true); setShow(false); if(cb) cb(); setCb(null); };
-  const deny   =()=>{ setShow(false); setCb(null); };
+  const confirm=()=>{
+    localStorage.setItem(ADULT_OK_STORAGE_KEY,"true");
+    setOk(true);
+    setShow(false);
+    handlers.onConfirm?.();
+    setHandlers({onConfirm:null,onDeny:null});
+  };
+  const deny=()=>{
+    setShow(false);
+    handlers.onDeny?.();
+    setHandlers({onConfirm:null,onDeny:null});
+  };
 
   return(
     <AgeCtx.Provider value={{ageOk:ok,ageReq}}>
@@ -379,13 +343,13 @@ function AgeProvider({children}){
         <div className="modal-bg">
           <div className="modal" style={{textAlign:"center"}}>
             <I n="shield" s={40} c="var(--warn)" style={{marginBottom:16}}/>
-            <h2 style={{marginBottom:8}}>Age Verification</h2>
+            <h2 style={{marginBottom:8}}>Adults only (18+). Are you 18 or older?</h2>
             <p style={{color:"var(--muted)",marginBottom:24}}>
-              This category contains adult content. You must be 18+ to continue.
+              This category contains adult content.
             </p>
             <div style={{display:"flex",gap:12,justifyContent:"center"}}>
-              <button className="btn btn-p" onClick={confirm}>I am 18+</button>
-              <button className="btn btn-d" onClick={deny}>Go Back</button>
+              <button className="btn btn-p" onClick={confirm}>Yes, I’m 18+</button>
+              <button className="btn btn-d" onClick={deny}>No</button>
             </div>
           </div>
         </div>
@@ -819,7 +783,7 @@ function RaffleBanner(){
 // ── HomePage ──────────────────────────────────────────────────
 function HomePage(){
   const {nav}=useRouter();
-  const {ageOk,ageReq}=useAge();
+  const {ageOk}=useAge();
   const [featured,setFeatured]=useState([]);
 
   const handleCategoryClick=(category)=>{
@@ -834,8 +798,11 @@ function HomePage(){
     supabase.from('deals').select('*')
       .eq('featured',true).eq('status','ACTIVE')
       .order('created_at',{ascending:false}).limit(4)
-      .then(({data})=>setFeatured((data||[]).map(fromDb)));
-  },[]);
+      .then(({data})=>{
+        const list=(data||[]).map(fromDb);
+        setFeatured(ageOk?list:list.filter(d=>!isAdultCategory(d.cat)));
+      });
+  },[ageOk]);
 
   return(
     <div>
@@ -851,8 +818,6 @@ function HomePage(){
         </p>
         <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
           <button className="btn btn-p" onClick={()=>nav("deals")}>Browse All Deals</button>
-          <button className="btn btn-o" onClick={()=>nav("deals",{dt:"SALE"})}>On Sale</button>
-          <button className="btn btn-o" onClick={()=>nav("deals",{dt:"PROMO"})}>Promo Codes</button>
         </div>
       </div>
 
@@ -902,6 +867,7 @@ function DealsPage(){
   const [sortBy,setSortBy]=useState("POPULAR");
   const [sideOpen,setSideOpen]=useState(false);
   const [allDeals,setAllDeals]=useState([]);
+  const lastNonAdultCatRef=useRef("");
 
   useEffect(()=>{
     supabase.from('deals').select('*').order('created_at',{ascending:false})
@@ -910,11 +876,24 @@ function DealsPage(){
 
   // Bug 5 fixed: sync filter state when params change (e.g. navigating from Home → different filter)
   useEffect(()=>{
+    const nextCat=params.cat||"";
     setDealType(params.dt||"ALL");
-    setCat(params.cat||"");
+    if(nextCat&&isAdultCategory(nextCat)&&!ageOk){
+      ageReq(
+        ()=>setCat(nextCat),
+        ()=>setCat(lastNonAdultCatRef.current||"")
+      );
+      setCat(lastNonAdultCatRef.current||"");
+    } else {
+      setCat(nextCat);
+    }
     setStack(!!params.stack);
     setQ(params.q||"");
-  },[params.dt,params.cat,params.stack,params.q]);
+  },[params.dt,params.cat,params.stack,params.q,ageOk]);
+
+  useEffect(()=>{
+    if(cat&&!isAdultCategory(cat)) lastNonAdultCatRef.current=cat;
+  },[cat]);
 
   const isNewToday=(createdAt)=>{
     const now=new Date();
@@ -972,7 +951,8 @@ function DealsPage(){
   const pickCat=(id)=>{
     const found=CATS.find(c=>c.id===id);
     if(found?.adult&&!ageOk){
-      ageReq(()=>setCat(id));
+      const fallback=(cat&&!isAdultCategory(cat))?cat:lastNonAdultCatRef.current||"";
+      ageReq(()=>setCat(id),()=>setCat(fallback));
     } else {
       setCat(id);
     }
@@ -980,6 +960,7 @@ function DealsPage(){
 
   const deals=useMemo(()=>{
     let list=allDeals.filter(d=>d.status==="ACTIVE");
+    if(!ageOk) list=list.filter(d=>!isAdultCategory(d.cat));
     list=list.filter(dealTypeMatches);
     if(cat)  list=list.filter(d=>d.cat===cat);
     if(stack)list=list.filter(d=>d.isStackable===true);
@@ -2651,6 +2632,22 @@ function Footer(){
       lineHeight:1.7,
       textAlign:"center"
     }}>
+      <div style={{marginBottom:14}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:"var(--txt)",marginBottom:6}}>Contact Us</h3>
+        <p>
+          General questions:{" "}
+          <a href="mailto:contact@dealflowhub.xyz" style={{color:"var(--p2)",textDecoration:"underline"}}>
+            contact@dealflowhub.xyz
+          </a>
+        </p>
+        <p>
+          Request a deal:{" "}
+          <a href="mailto:requests@dealflowhub.xyz" style={{color:"var(--p2)",textDecoration:"underline"}}>
+            requests@dealflowhub.xyz
+          </a>
+        </p>
+      </div>
+
       <strong style={{color:"var(--txt)"}}>Amazon Affiliate Disclosure:</strong>{" "}
       Deal Flow Hub is a participant in the Amazon Services LLC Associates Program,
       an affiliate advertising program designed to provide a means for sites to earn
