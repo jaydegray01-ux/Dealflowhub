@@ -791,8 +791,6 @@ function HomePage(){
         </p>
         <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
           <button className="btn btn-p" onClick={()=>nav("deals")}>Browse All Deals</button>
-          <button className="btn btn-o" onClick={()=>nav("deals",{dt:"SALE"})}>On Sale</button>
-          <button className="btn btn-o" onClick={()=>nav("deals",{dt:"PROMO"})}>Promo Codes</button>
         </div>
       </div>
 
