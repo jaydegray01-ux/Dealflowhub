@@ -142,6 +142,57 @@ const CATS = [
   {id:"adult-products",           label:"Adult Products",           emoji:"🔞", adult:true },
 ];
 
+const CATEGORY_LOOKUP = CATS.reduce((acc,cat)=>{
+  acc[cat.id]=cat.id;
+  acc[cat.label.toLowerCase()]=cat.id;
+  return acc;
+},{});
+
+const CATEGORY_ALIASES = {
+  electronics: "electronics",
+  tech: "electronics",
+  "home": "home-and-kitchen",
+  "home kitchen": "home-and-kitchen",
+  kitchen: "home-and-kitchen",
+  clothing: "clothing",
+  apparel: "clothing",
+  fashion: "clothing",
+  beauty: "beauty-and-personal-care",
+  "personal care": "beauty-and-personal-care",
+  "health": "health-and-household",
+  wellness: "health-and-household",
+  tools: "tools-and-home-improvement",
+  "home improvement": "tools-and-home-improvement",
+  baby: "baby",
+  kids: "baby",
+  toys: "toys-and-games",
+  games: "toys-and-games",
+  sports: "sports-and-outdoors",
+  outdoors: "sports-and-outdoors",
+  automotive: "automotive",
+  cars: "automotive",
+  pets: "pet-supplies",
+  "pet supplies": "pet-supplies",
+  crafts: "arts-and-crafts",
+  diy: "arts-and-crafts",
+  other: "other",
+  adult: "adult-products",
+  "adult products": "adult-products",
+};
+
+const normalizeCategory = (raw)=>{
+  if(!raw) return null;
+  const cleaned=String(raw).trim().toLowerCase();
+  if(!cleaned) return null;
+  const normalizedKey=cleaned.replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
+  const canonicalById=normalizedKey.replace(/\s+/g,'-');
+  return CATEGORY_LOOKUP[cleaned]
+    || CATEGORY_LOOKUP[canonicalById]
+    || CATEGORY_LOOKUP[normalizedKey]
+    || CATEGORY_ALIASES[normalizedKey]
+    || null;
+};
+
 // ── DB field mapping ──────────────────────────────────────────
 const fromDb = (d) => ({
   id:               d.id,
@@ -1823,6 +1874,247 @@ function ParserReference(){
   );
 }
 
+const BULK_CSV_COLUMNS = [
+  "title","description","price","original_price","category","deal_url","deal_type",
+  "promo_code","is_stackable","stack_options","created_at",
+];
+
+const splitCsvLine = (line='') => {
+  const out=[];
+  let cur='';
+  let inQuotes=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){
+      if(inQuotes && line[i+1]==='"'){
+        cur+='"';
+        i++;
+      } else inQuotes=!inQuotes;
+    } else if(ch===',' && !inQuotes){
+      out.push(cur.trim());
+      cur='';
+    } else cur+=ch;
+  }
+  out.push(cur.trim());
+  return out;
+};
+
+const parseBulkCsv = (text='') => {
+  const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(l=>l.trim().length>0);
+  if(!lines.length) return [];
+  const headers=splitCsvLine(lines[0]).map(h=>h.trim().toLowerCase());
+  return lines.slice(1).map((line,idx)=>{
+    const vals=splitCsvLine(line);
+    const row={};
+    headers.forEach((h,i)=>{ row[h]=vals[i]??''; });
+    return {index:idx+2,row};
+  });
+};
+
+const parseBool = (v)=>{
+  const value=String(v??'').trim().toLowerCase();
+  if(!value) return null;
+  if(["true","1","yes","y"].includes(value)) return true;
+  if(["false","0","no","n"].includes(value)) return false;
+  return null;
+};
+
+const parseNum = (v)=>{
+  const cleaned=String(v??'').trim().replace(/[$,]/g,'');
+  if(!cleaned) return null;
+  const n=Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+};
+
+const validateBulkRow = ({index,row}) => {
+  const errors=[];
+  const title=String(row.title||'').trim();
+  const description=String(row.description||'').trim();
+  const category=normalizeCategory(row.category);
+  const link=String(row.deal_url||'').trim();
+  const price=parseNum(row.price);
+  const originalPrice=parseNum(row.original_price);
+  const rawType=String(row.deal_type||'').trim().toLowerCase();
+  const dealType=rawType==='instant' ? 'SALE' : rawType==='promo_code' ? 'PROMO' : null;
+  const promoCode=String(row.promo_code||'').trim();
+  const isStackable=parseBool(row.is_stackable);
+  const stackOptions=String(row.stack_options||'').split('|').map(s=>s.trim()).filter(Boolean);
+  const createdRaw=String(row.created_at||'').trim();
+  const createdAt=createdRaw ? new Date(createdRaw) : new Date();
+
+  if(!title) errors.push('title is required');
+  if(price==null) errors.push('price is required and must be numeric');
+  if(!category) errors.push('category is required and must map to a known category');
+  if(!link) errors.push('deal_url is required');
+  if(!dealType) errors.push('deal_type must be instant or promo_code');
+  if(rawType==='promo_code' && !promoCode) errors.push('promo_code is required when deal_type=promo_code');
+  if(String(row.original_price||'').trim() && originalPrice==null) errors.push('original_price must be numeric when provided');
+  if(String(row.is_stackable||'').trim() && isStackable==null) errors.push('is_stackable must be true or false when provided');
+  if(createdRaw && Number.isNaN(createdAt.getTime())) errors.push('created_at must be a valid date when provided');
+
+  return {
+    index,
+    row,
+    errors,
+    valid: errors.length===0,
+    deal: {
+      title,
+      description,
+      link,
+      dealType,
+      code: rawType==='promo_code' ? promoCode : '',
+      cat: category,
+      isStackable: isStackable ?? false,
+      stackOptions,
+      currentPrice: price,
+      originalPrice,
+      status: 'ACTIVE',
+      featured: false,
+    },
+    createdAt: createdAt.toISOString(),
+  };
+};
+
+function BulkAddDealsPage(){
+  const toast=useToast();
+  const [csvText,setCsvText]=useState('');
+  const [previewRows,setPreviewRows]=useState([]);
+  const [importing,setImporting]=useState(false);
+  const [result,setResult]=useState(null);
+
+  const runPreview=()=>{
+    const parsed=parseBulkCsv(csvText).map(validateBulkRow);
+    setPreviewRows(parsed);
+    setResult(null);
+    if(!parsed.length) toast?.('No CSV rows found.','err');
+    else toast?.(`Preview ready: ${parsed.length} row(s).`,'ok');
+  };
+
+  const onFileUpload=(e)=>{
+    const file=e.target.files?.[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=()=>setCsvText(String(reader.result||''));
+    reader.readAsText(file);
+  };
+
+  const handleImport=async()=>{
+    const rows=(previewRows.length?previewRows:parseBulkCsv(csvText).map(validateBulkRow));
+    setPreviewRows(rows);
+    const validRows=rows.filter(r=>r.valid);
+    const invalidRows=rows.filter(r=>!r.valid);
+    if(!validRows.length){
+      setResult({imported:0,failed:invalidRows.length,failedRows:invalidRows});
+      toast?.('No valid rows to import.','err');
+      return;
+    }
+
+    setImporting(true);
+    try{
+      const payload=validRows.map(r=>({
+        ...toDb(r.deal),
+        created_at: r.createdAt,
+      }));
+      const {error}=await supabase.from('deals').insert(payload);
+      if(error){
+        toast?.(error.message,'err');
+        setResult({imported:0,failed:rows.length,failedRows:rows.map(r=>({...r,errors:r.errors.length?r.errors:[error.message]}))});
+        return;
+      }
+      setResult({imported:validRows.length,failed:invalidRows.length,failedRows:invalidRows});
+      toast?.(`Imported ${validRows.length} deals.`,'ok');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return(
+    <Guard adm>
+      <div className="page">
+        <h1 style={{fontSize:28,marginBottom:8}}>Bulk Add Deals</h1>
+        <p style={{color:'var(--muted)',marginBottom:16,fontSize:14}}>
+          Paste CSV or upload a file, preview rows, then import valid deals.
+        </p>
+
+        <div className="card" style={{marginBottom:18}}>
+          <div style={{display:'grid',gap:12}}>
+            <div>
+              <label style={{display:'block',marginBottom:6,fontSize:13,color:'var(--muted)'}}>Paste CSV</label>
+              <textarea
+                rows={10}
+                value={csvText}
+                onChange={e=>setCsvText(e.target.value)}
+                placeholder={BULK_CSV_COLUMNS.join(',')}
+                style={{resize:'vertical'}}
+              />
+            </div>
+            <div>
+              <label style={{display:'block',marginBottom:6,fontSize:13,color:'var(--muted)'}}>Upload CSV file</label>
+              <input type="file" accept=".csv,text/csv" onChange={onFileUpload}/>
+            </div>
+            <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+              <button className="btn btn-o" onClick={runPreview}>Preview</button>
+              <button className="btn btn-p" onClick={handleImport} disabled={importing}>
+                {importing?'Importing…':'Import'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{marginBottom:18,overflowX:'auto'}}>
+          <h3 style={{marginBottom:12}}>Preview (first 20 rows)</h3>
+          {!previewRows.length?(
+            <p style={{color:'var(--muted)',fontSize:13}}>No rows previewed yet.</p>
+          ):(
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+              <thead>
+                <tr style={{borderBottom:'1px solid var(--bdr)'}}>
+                  <th style={{padding:'8px',textAlign:'left'}}>Row</th>
+                  <th style={{padding:'8px',textAlign:'left'}}>Title</th>
+                  <th style={{padding:'8px',textAlign:'left'}}>Category</th>
+                  <th style={{padding:'8px',textAlign:'left'}}>Type</th>
+                  <th style={{padding:'8px',textAlign:'left'}}>Price</th>
+                  <th style={{padding:'8px',textAlign:'left'}}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previewRows.slice(0,20).map(r=>(
+                  <tr key={r.index} style={{borderBottom:'1px solid var(--bdr)'}}>
+                    <td style={{padding:'8px'}}>#{r.index}</td>
+                    <td style={{padding:'8px'}}>{r.deal.title||'—'}</td>
+                    <td style={{padding:'8px'}}>{r.deal.cat||String(r.row.category||'—')}</td>
+                    <td style={{padding:'8px'}}>{String(r.row.deal_type||'—')}</td>
+                    <td style={{padding:'8px'}}>{r.deal.currentPrice??'—'}</td>
+                    <td style={{padding:'8px',color:r.valid?'var(--ok)':'var(--err)'}}>{r.valid?'Valid':r.errors.join('; ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {result&&(
+          <div className="card">
+            <h3 style={{marginBottom:10}}>Import Result</h3>
+            <p style={{marginBottom:6}}>Imported: <strong>{result.imported}</strong></p>
+            <p style={{marginBottom:10}}>Failed: <strong>{result.failed}</strong></p>
+            {result.failedRows?.length>0&&(
+              <div>
+                <h4 style={{fontSize:14,marginBottom:8}}>Failed Rows</h4>
+                <ul style={{paddingLeft:20,display:'grid',gap:6}}>
+                  {result.failedRows.map(r=>(
+                    <li key={r.index} style={{fontSize:13,color:'var(--err)'}}>Row {r.index}: {r.errors.join('; ')}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </Guard>
+  );
+}
+
 // ── AdminDash ─────────────────────────────────────────────────
 function AdminDash(){
   const toast=useToast();
@@ -1886,6 +2178,7 @@ function AdminDash(){
         <div style={{display:"flex",alignItems:"center",marginBottom:24}}>
           <h1 style={{flex:1,fontSize:22}}><I n="admin" s={18}/> Admin Dashboard</h1>
           {adminSection==="deals"&&<button className="btn btn-p" onClick={()=>setAdding(true)}><I n="plus" s={14}/> Add Deal</button>}
+          <button className="btn btn-o" onClick={()=>nav("admin/bulk-add")}>Bulk Add CSV</button>
         </div>
 
         <div style={{display:"flex",gap:8,marginBottom:24}}>
@@ -2357,6 +2650,15 @@ function Footer(){
       <div style={{marginTop:10}}>
         <a href="/privacy" style={{color:"var(--p2)",textDecoration:"underline"}}>Privacy Policy</a>
       </div>
+      <div style={{marginTop:10}}>
+        <strong style={{color:"var(--txt)"}}>Contact Us:</strong>{" "}
+        <a href="mailto:contact@dealflowhub.xyz" style={{color:"var(--p2)",textDecoration:"underline"}}>contact@dealflowhub.xyz</a>
+        {" · "}
+        <a href="mailto:requests@dealflowhub.xyz" style={{color:"var(--p2)",textDecoration:"underline"}}>requests@dealflowhub.xyz</a>
+      </div>
+      <div style={{marginTop:6}}>
+        Request a deal: email <a href="mailto:requests@dealflowhub.xyz" style={{color:"var(--p2)",textDecoration:"underline"}}>requests@dealflowhub.xyz</a>.
+      </div>
     </footer>
   );
 }
@@ -2497,6 +2799,7 @@ function App(){
     auth:     <AuthPage/>,
     dashboard:<DashPage/>,
     admin:    <AdminDash/>,
+    "admin/bulk-add": <BulkAddDealsPage/>,
     raffle:   <RafflePage/>,
     otherways:<OtherWaysPage/>,
   };
