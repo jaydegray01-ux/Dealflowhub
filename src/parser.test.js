@@ -187,6 +187,46 @@ test('handles large number with commas', () => {
   assert.equal(r.originalPrice, 1299.99);
 });
 
+// ── Category matching (& vs "and") ───────────────────────────
+const CATS = [
+  { id: 'toys-and-games',           label: 'Toys & Games' },
+  { id: 'sports-and-outdoors',      label: 'Sports & Outdoors' },
+  { id: 'tools-and-home-improvement', label: 'Tools & Home Improvement' },
+  { id: 'home-and-kitchen',         label: 'Home & Kitchen' },
+  { id: 'beauty-and-personal-care', label: 'Beauty & Personal Care' },
+  { id: 'arts-and-crafts',          label: 'Arts, Crafts & DIY' },
+];
+
+test('matchCat: "Toys & Games" matches toys-and-games', () => {
+  const r = parseDealText('Category: Toys & Games', CATS);
+  assert.equal(r.cat, 'toys-and-games');
+});
+
+test('matchCat: "Toys and Games" matches toys-and-games', () => {
+  const r = parseDealText('Category: Toys and Games', CATS);
+  assert.equal(r.cat, 'toys-and-games');
+});
+
+test('matchCat: "Sports & Outdoors" matches sports-and-outdoors', () => {
+  const r = parseDealText('Category: Sports & Outdoors', CATS);
+  assert.equal(r.cat, 'sports-and-outdoors');
+});
+
+test('matchCat: "Sports and Outdoors" matches sports-and-outdoors', () => {
+  const r = parseDealText('Category: Sports and Outdoors', CATS);
+  assert.equal(r.cat, 'sports-and-outdoors');
+});
+
+test('matchCat: "Tools & Home Improvement" matches tools-and-home-improvement', () => {
+  const r = parseDealText('Category: Tools & Home Improvement', CATS);
+  assert.equal(r.cat, 'tools-and-home-improvement');
+});
+
+test('matchCat: "Tools and Home Improvement" matches tools-and-home-improvement', () => {
+  const r = parseDealText('Category: Tools and Home Improvement', CATS);
+  assert.equal(r.cat, 'tools-and-home-improvement');
+});
+
 // ── parseMethodText ───────────────────────────────────────────
 
 test('parseMethodText: parses title from plaintext', () => {

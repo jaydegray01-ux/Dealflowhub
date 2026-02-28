@@ -32,7 +32,7 @@ export function parseDealText(raw, cats = []) {
   const out = {};
   if (!raw) return out;
 
-  const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const norm = s => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
 
   const clean = s =>
     s.replace(/\*\*/g, '')
