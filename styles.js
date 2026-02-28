@@ -2382,6 +2382,22 @@ function Footer(){
       lineHeight:1.7,
       textAlign:"center"
     }}>
+      <div style={{marginBottom:14}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:"var(--txt)",marginBottom:6}}>Contact Us</h3>
+        <p>
+          General questions:{" "}
+          <a href="mailto:contact@dealflowhub.xyz" style={{color:"var(--p2)",textDecoration:"underline"}}>
+            contact@dealflowhub.xyz
+          </a>
+        </p>
+        <p>
+          Request a deal:{" "}
+          <a href="mailto:requests@dealflowhub.xyz" style={{color:"var(--p2)",textDecoration:"underline"}}>
+            requests@dealflowhub.xyz
+          </a>
+        </p>
+      </div>
+
       <strong style={{color:"var(--txt)"}}>Amazon Affiliate Disclosure:</strong>{" "}
       Deal Flow Hub is a participant in the Amazon Services LLC Associates Program,
       an affiliate advertising program designed to provide a means for sites to earn
