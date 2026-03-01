@@ -76,7 +76,7 @@ export function parseDealText(raw, cats = []) {
     const isNone = /^(\(none\)|none|n\/a|-)$/i.test(value);
     switch (key) {
       case 'title': out.title = value; break;
-      case 'dealtype': { const dt = value.toUpperCase(); if (['SALE','PROMO','BOTH','STACKABLE'].includes(dt)) out.dealType = dt; break; }
+      case 'dealtype': { const dt = value.toUpperCase(); if (['SALE','PROMO','BOTH'].includes(dt)) out.dealType = dt; break; }
       case 'description': out.description = value; break;
       case 'productimageurl': case 'imageurl': case 'image': out.imageUrl = value; break;
       case 'producturl': case 'link': case 'url': out.link = value; break;

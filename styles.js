@@ -859,7 +859,6 @@ function DealsPage(){
 
   const [dealType,setDealType]=useState(params.dt||"ALL");
   const [cat,setCat]=useState(params.cat||"");
-  const [stack,setStack]=useState(!!params.stack);
   const [q,setQ]=useState(params.q||"");
   const [price,setPrice]=useState("ALL");
   const [discount,setDiscount]=useState("ALL");
@@ -887,9 +886,8 @@ function DealsPage(){
     } else {
       setCat(nextCat);
     }
-    setStack(!!params.stack);
     setQ(params.q||"");
-  },[params.dt,params.cat,params.stack,params.q,ageOk]);
+  },[params.dt,params.cat,params.q,ageOk]);
 
   useEffect(()=>{
     if(cat&&!isAdultCategory(cat)) lastNonAdultCatRef.current=cat;
@@ -914,7 +912,7 @@ function DealsPage(){
 
   const dealTypeMatches=(d)=>{
     if(dealType==="ALL") return true;
-    if(dealType==="INSTANT") return ["SALE","STACKABLE"].includes(d.dealType);
+    if(dealType==="INSTANT") return d.dealType==="SALE";
     if(dealType==="PROMO_REQUIRED") return ["PROMO","BOTH"].includes(d.dealType);
     return true;
   };
@@ -963,7 +961,6 @@ function DealsPage(){
     if(!ageOk) list=list.filter(d=>!isAdultCategory(d.cat));
     list=list.filter(dealTypeMatches);
     if(cat)  list=list.filter(d=>d.cat===cat);
-    if(stack)list=list.filter(d=>d.isStackable===true);
     list=list.filter(priceMatches);
     list=list.filter(discountMatches);
     list=list.filter(freshnessMatches);
@@ -983,7 +980,7 @@ function DealsPage(){
       return getPopularityScore(b)-getPopularityScore(a);
     });
     return list;
-  },[allDeals,dealType,cat,stack,price,discount,freshness,q,sortBy]);
+  },[allDeals,dealType,cat,price,discount,freshness,q,sortBy]);
 
   const Sidebar=()=>(
     <div id="deals-sidebar" className={`sidebar card${sideOpen?" open":""}`}>
@@ -1053,10 +1050,6 @@ function DealsPage(){
           </label>
         ))}
       </div>
-      <label style={{display:"flex",alignItems:"center",gap:8,fontSize:14,cursor:"pointer"}}>
-        <input type="checkbox" checked={stack} onChange={e=>setStack(e.target.checked)} style={{width:"auto"}}/>
-        Stackable Only
-      </label>
     </div>
   );
 
@@ -1410,11 +1403,16 @@ const fetchProductImage = async (url) => {
 
 function DealForm({initial,onSave,onCancel}){
   const toast=useToast();
-  const [s,setS]=useState(initial||{
+  const normalizedInitial=initial?{
+    ...initial,
+    dealType: initial.dealType==="STACKABLE"?"SALE":initial.dealType,
+    isStackable: false,
+    stackOptions: [],
+  }:null;
+  const [s,setS]=useState(normalizedInitial||{
     title:"",description:"",link:"https://",dealType:"SALE",code:"",
     cat:"electronics",expires:ad(7).slice(0,10),featured:false,status:"ACTIVE",
     imageUrl:"", stackInstructions:"",
-    isStackable:false, stackOptions:[],
     currentPrice: null, originalPrice: null, percentOff: null,
   });
 
@@ -1466,11 +1464,7 @@ function DealForm({initial,onSave,onCancel}){
       toast?.("Promo code is required for Promo and Sale+Code deal types","err");
       return;
     }
-    if((s.isStackable||s.dealType==="STACKABLE")&&!(s.stackInstructions||"").trim()){
-      toast?.("Stack instructions are required for stackable deals","err");
-      return;
-    }
-    onSave(s);
+    onSave({...s,isStackable:false,stackOptions:[]});
   };
 
   return(
@@ -1504,7 +1498,6 @@ Deal Type: SALE"
             <option value="SALE">SALE</option>
             <option value="PROMO">PROMO</option>
             <option value="BOTH">BOTH</option>
-            <option value="STACKABLE">STACKABLE</option>
           </select>
         </div>
       </div>
@@ -1582,32 +1575,16 @@ Deal Type: SALE"
           <input value={s.code} onChange={e=>set("code",e.target.value)} placeholder="e.g. SAVE20"/>
         </div>
       </div>
-      {(s.isStackable||s.dealType==="STACKABLE"||s.dealType==="BOTH")&&(
+      {s.dealType==="BOTH"&&(
         <div>
           <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>
-            Stack Instructions * <span style={{fontWeight:400}}>(required for stackable deals)</span>
+            Stack Instructions
           </label>
           <textarea
             value={s.stackInstructions||""}
             onChange={e=>set("stackInstructions",e.target.value)}
             rows={2}
             placeholder="e.g. Activate Rakuten before clicking through for 5% back on top of the sale price."
-          />
-        </div>
-      )}
-      <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
-        <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:14}}>
-          <input type="checkbox" checked={!!s.isStackable} onChange={e=>set("isStackable",e.target.checked)} style={{width:"auto"}}/>
-          Stackable
-        </label>
-      </div>
-      {(s.isStackable||s.dealType==="STACKABLE"||s.dealType==="BOTH")&&(
-        <div>
-          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Stack Options (comma separated)</label>
-          <input
-            value={(s.stackOptions||[]).join(", ")}
-            onChange={e=>set("stackOptions",e.target.value.split(",").map(v=>v.trim()).filter(Boolean))}
-            placeholder="Cashback, Rewards Points, Free Shipping"
           />
         </div>
       )}
