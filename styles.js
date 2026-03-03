@@ -170,6 +170,7 @@ const fromDb = (d) => ({
   currentPrice:     d.current_price  ?? null,
   originalPrice:    d.original_price ?? null,
   percentOff:       d.percent_off    ?? null,
+  asin:             d.asin || '',
 });
 
 const toDb = (d) => ({
@@ -193,6 +194,7 @@ const toDb = (d) => ({
   current_price:     d.currentPrice  ?? null,
   original_price:    d.originalPrice ?? null,
   percent_off:       d.percentOff    ?? null,
+  asin:              d.asin || null,
 });
 
 // ── Methods DB field mapping ──────────────────────────────────
@@ -1416,6 +1418,7 @@ function DealForm({initial,onSave,onCancel}){
     imageUrl:"", stackInstructions:"",
     isStackable:false, stackOptions:[],
     currentPrice: null, originalPrice: null, percentOff: null,
+    asin:'',
   });
 
   const set=(k,v)=>setS(p=>({...p,[k]:v}));
@@ -1436,6 +1439,9 @@ function DealForm({initial,onSave,onCancel}){
 
   const [pasteText,setPasteText]=useState('');
   const [parsing,setParsing]=useState(false);
+  const [amazonUrl,setAmazonUrl]=useState('');
+  const [importingAmazon,setImportingAmazon]=useState(false);
+  const [duplicateDeal,setDuplicateDeal]=useState(null);
   const handleParse=async()=>{
     const parsed=parseDealText(pasteText);
     const count=Object.keys(parsed).length;
@@ -1457,6 +1463,49 @@ function DealForm({initial,onSave,onCancel}){
     setPasteText('');
     if(count<3) toast?.(`Partially filled ${count} field${count>1?"s":""}. Please review.`,"info");
     else toast?.(`Auto-filled ${count} field${count>1?"s":""}. Review before saving.`,"ok");
+  };
+
+  const handleAmazonImport = async () => {
+    if (!amazonUrl.trim()) { toast?.("Enter an Amazon URL first","err"); return; }
+    setImportingAmazon(true);
+    setDuplicateDeal(null);
+    try {
+      const res = await fetch('/api/import/amazon', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ url: amazonUrl.trim() }),
+      });
+      const data = await res.json().catch(()=>({}));
+      if (!res.ok) throw new Error(data?.error || 'Amazon import failed.');
+      const deal = data?.deal || {};
+      setS(p=>({
+        ...p,
+        title: deal.title || p.title,
+        imageUrl: deal.imageUrl || p.imageUrl,
+        link: deal.link || p.link,
+        description: deal.description || p.description,
+        asin: deal.asin || p.asin,
+      }));
+
+      if (deal.asin) {
+        const { data: dup, error } = await supabase
+          .from('deals')
+          .select('*')
+          .eq('asin', deal.asin)
+          .limit(1);
+        if (!error && dup && dup.length > 0) {
+          const exists = fromDb(dup[0]);
+          setDuplicateDeal(exists);
+          toast?.('Already exists — loaded match below.', 'info');
+        }
+      }
+
+      toast?.('Amazon import complete. Review fields before saving.','ok');
+    } catch (e) {
+      toast?.(e?.message || 'Amazon import failed.','err');
+    } finally {
+      setImportingAmazon(false);
+    }
   };
 
   const submit=(e)=>{
@@ -1493,6 +1542,22 @@ Deal Type: SALE"
           <I n="check" s={13}/> {parsing?"Fetching image…":"Parse & Autofill"}
         </button>
       </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,alignItems:"end"}}>
+        <div>
+          <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block",fontWeight:600}}>Amazon URL</label>
+          <input value={amazonUrl} onChange={e=>setAmazonUrl(e.target.value)} placeholder="https://www.amazon.com/dp/B08N5WRWNW"/>
+        </div>
+        <button type="button" className="btn btn-o" onClick={handleAmazonImport} disabled={importingAmazon}>
+          {importingAmazon?"Importing…":"Import"}
+        </button>
+      </div>
+      {duplicateDeal&&(
+        <div className="tag tag-warn" style={{alignSelf:"flex-start",padding:"8px 12px",borderRadius:10}}>
+          Already exists: {duplicateDeal.title}
+          <a href={`/#deal?id=${duplicateDeal.id}`} style={{textDecoration:'underline',marginLeft:6}}>View</a>
+        </div>
+      )}
+      <input type="hidden" value={s.asin||''} readOnly />
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <div>
           <label style={{fontSize:12,color:"var(--muted)",marginBottom:4,display:"block"}}>Title *</label>
