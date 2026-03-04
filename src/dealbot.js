@@ -92,7 +92,9 @@ export async function normalizeAmazonUrl(inputUrl, opts = {}) {
   const asin = extractAmazonAsin(workingUrl);
   if (!asin) throw new Error('Could not extract ASIN from URL.');
 
-  const canonicalUrl = `https://www.amazon.com/dp/${asin}`;
+  const amazonMatch = parsed.hostname.match(/amazon\.[a-z.]+$/i);
+  const canonicalHost = amazonMatch ? `www.${amazonMatch[0]}` : parsed.hostname;
+  const canonicalUrl = `https://${canonicalHost}/dp/${asin}`;
   return { asin, canonicalUrl, finalUrl: workingUrl, finalHost: parsed.hostname };
 }
 

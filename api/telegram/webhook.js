@@ -197,6 +197,7 @@ async function findDraftForPhoto({ supabase, message }) {
       .select('id,featured')
       .eq('source_chat_id', String(message.chat.id))
       .eq('source_message_id', message.reply_to_message.message_id)
+      .eq('status', 'INACTIVE')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -261,16 +262,13 @@ async function handlePhotoMessage({ message, supabase, token, bucket, fetchImpl 
     percent_off: discountPct,
     featured,
     price_screenshot_url: screenshotUrl,
-    status: shouldPublish ? 'ACTIVE' : 'INACTIVE',
+    ...(shouldPublish ? { status: 'ACTIVE' } : {}),
   };
 
   const { error } = await supabase.from('deals').update(updates).eq('id', draft.id);
   if (error) throw error;
 
-  let reply = `Price extraction:\nCurrent: ${currentPrice ?? 'n/a'}\nOriginal: ${originalPrice ?? 'n/a'}\nDiscount: ${discountPct ?? 'n/a'}%\nConfidence: ${confidence.toFixed(2)}\nFeatured: ${featured ? 'yes' : 'no'}\nStatus: ${shouldPublish ? 'published' : 'draft'}`;
-  if (!shouldPublish) {
-    reply += '\nReply Yes/No to confirm publishing.';
-  }
+  const reply = `Price extraction:\nCurrent: ${currentPrice ?? 'n/a'}\nOriginal: ${originalPrice ?? 'n/a'}\nDiscount: ${discountPct ?? 'n/a'}%\nConfidence: ${confidence.toFixed(2)}\nFeatured: ${featured ? 'yes' : 'no'}\nStatus: ${shouldPublish ? 'published' : 'draft'}`;
 
   await sendTelegramMessage({ token, chatId: message.chat.id, text: reply, replyToMessageId: message.message_id, fetchImpl });
 }
