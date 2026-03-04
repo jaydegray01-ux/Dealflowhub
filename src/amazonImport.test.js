@@ -53,6 +53,17 @@ test('parseAmazonProductHtml handles apostrophes in double-quoted meta content',
   assert.equal(result.description, "Best children's toy on the market");
 });
 
+test('parseAmazonProductHtml handles apostrophes in single-quoted meta content', () => {
+  const html = `<html><head>
+    <meta property='og:title' content='Kid&#39;s Toy - Fun &amp; Games' />
+    <meta property='og:image' content='https://images.example.com/toy.jpg' />
+    <meta property='og:description' content='Best children&#39;s toy on the market' />
+  </head></html>`;
+  const result = parseAmazonProductHtml(html);
+  assert.equal(result.title, "Kid's Toy - Fun & Games");
+  assert.equal(result.description, "Best children's toy on the market");
+});
+
 test('amazon import API parses mocked HTML and returns autofill payload', async () => {
   process.env.AMAZON_ASSOC_TAG = 'dealflowhub-20';
 
