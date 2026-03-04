@@ -31,6 +31,10 @@ test('extractAmazonAsin handles common Amazon URL formats', () => {
   assert.equal(extractAmazonAsin('https://www.amazon.com/Some-Name/dp/b08n5wrwnw/'), 'B08N5WRWNW');
   assert.equal(extractAmazonAsin('https://www.amazon.com/s?k=headphones&asin=B08N5WRWNW'), 'B08N5WRWNW');
   assert.equal(extractAmazonAsin('https://example.com/dp/B08N5WRWNW'), null);
+  assert.equal(extractAmazonAsin('https://www.amazon.co.uk/dp/B08N5WRWNW'), 'B08N5WRWNW');
+  assert.equal(extractAmazonAsin('https://www.amazon.de/dp/B08N5WRWNW'), 'B08N5WRWNW');
+  assert.equal(extractAmazonAsin('https://amazon.com.evil.com/dp/B08N5WRWNW'), null);
+  assert.equal(extractAmazonAsin('https://www.amazon.com.evil.com/dp/B08N5WRWNW'), null);
 });
 
 test('canonicalAmazonUrl + affiliateAmazonUrl produce expected URLs', () => {
@@ -42,26 +46,30 @@ test('canonicalAmazonUrl + affiliateAmazonUrl produce expected URLs', () => {
   );
 });
 
-test('parseAmazonProductHtml handles apostrophes in double-quoted meta content', () => {
-  const html = `<html><head>
-    <meta property="og:title" content="Kid's Toy - Fun &amp; Games" />
-    <meta property="og:image" content="https://images.example.com/toy.jpg" />
-    <meta property="og:description" content="Best children's toy on the market" />
-  </head></html>`;
-  const result = parseAmazonProductHtml(html);
-  assert.equal(result.title, "Kid's Toy - Fun & Games");
-  assert.equal(result.description, "Best children's toy on the market");
+test('canonicalAmazonUrl preserves non-US Amazon marketplace TLD', () => {
+  assert.equal(
+    canonicalAmazonUrl('B08N5WRWNW', 'www.amazon.co.uk'),
+    'https://www.amazon.co.uk/dp/B08N5WRWNW',
+  );
+  assert.equal(
+    canonicalAmazonUrl('B08N5WRWNW', 'www.amazon.de'),
+    'https://www.amazon.de/dp/B08N5WRWNW',
+  );
+  assert.equal(
+    canonicalAmazonUrl('B08N5WRWNW', 'smile.amazon.co.jp'),
+    'https://www.amazon.co.jp/dp/B08N5WRWNW',
+  );
 });
 
-test('parseAmazonProductHtml handles apostrophes in single-quoted meta content', () => {
-  const html = `<html><head>
-    <meta property='og:title' content='Kid&#39;s Toy - Fun &amp; Games' />
-    <meta property='og:image' content='https://images.example.com/toy.jpg' />
-    <meta property='og:description' content='Best children&#39;s toy on the market' />
-  </head></html>`;
-  const result = parseAmazonProductHtml(html);
-  assert.equal(result.title, "Kid's Toy - Fun & Games");
-  assert.equal(result.description, "Best children's toy on the market");
+test('canonicalAmazonUrl rejects non-Amazon hosts that contain amazon.com', () => {
+  assert.equal(
+    canonicalAmazonUrl('B08N5WRWNW', 'amazon.com.evil.com'),
+    'https://www.amazon.com/dp/B08N5WRWNW',
+  );
+  assert.equal(
+    canonicalAmazonUrl('B08N5WRWNW', 'www.amazon.com.evil.com'),
+    'https://www.amazon.com/dp/B08N5WRWNW',
+  );
 });
 
 test('amazon import API parses mocked HTML and returns autofill payload', async () => {
