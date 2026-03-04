@@ -1,4 +1,4 @@
-const AMAZON_HOST_RE = /(^|\.)amazon\.[a-z.]+$/i;
+const AMAZON_HOST_RE = /^(?:[a-z0-9-]+\.)?amazon\.[a-z]{2,3}(?:\.[a-z]{2})?$/i;
 
 const decodeEntities = (value = '') => value
   .replace(/&amp;/g, '&')
@@ -41,9 +41,9 @@ export function extractAmazonAsin(rawUrl = '') {
 
 export function canonicalAmazonUrl(asin, host = 'www.amazon.com') {
   if (!asin || !/^[A-Z0-9]{10}$/i.test(asin)) return null;
-  const tldMatch = String(host).match(/(amazon\.[a-z.]+)$/i);
-  const canonicalHost = tldMatch ? `www.${tldMatch[1]}` : 'www.amazon.com';
-  return `https://${canonicalHost}/dp/${asin.toUpperCase()}`;
+  const tldMatch = String(host).match(/^(?:[a-z0-9-]+\.)?amazon\.([a-z]{2,3}(?:\.[a-z]{2})?)$/i);
+  const tld = tldMatch ? tldMatch[1] : 'com';
+  return `https://www.amazon.${tld}/dp/${asin.toUpperCase()}`;
 }
 
 export function affiliateAmazonUrl(canonicalUrl, assocTag = '') {
