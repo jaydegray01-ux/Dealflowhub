@@ -5,6 +5,7 @@ import {
   extractAmazonAsin,
   canonicalAmazonUrl,
   affiliateAmazonUrl,
+  parseAmazonProductHtml,
 } from './amazonImport.js';
 import { createAmazonImportHandler } from '../api/import/amazon.js';
 

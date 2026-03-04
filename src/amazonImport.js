@@ -59,30 +59,31 @@ export function parseAmazonProductHtml(html = '') {
   const pick = (...patterns) => {
     for (const pattern of patterns) {
       const match = safeHtml.match(pattern);
-      if (match?.[1]) return decodeEntities(match[1].trim());
+      const value = match?.[1] ?? match?.[2];
+      if (value) return decodeEntities(value.trim());
     }
     return '';
   };
 
   const title = pick(
-    /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i,
+    /<meta[^>]+property=["']og:title["'][^>]+content=(?:"([^"]+)"|'([^']+)')/i,
+    /<meta[^>]+content=(?:"([^"]+)"|'([^']+)')[^>]+property=["']og:title["']/i,
     /<span[^>]+id=["']productTitle["'][^>]*>([\s\S]*?)<\/span>/i,
     /<title>([^<]+)<\/title>/i,
   ).replace(/\s+/g, ' ').trim();
 
   const imageUrl = pick(
-    /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
-    /<img[^>]+id=["']landingImage["'][^>]+src=["']([^"']+)["']/i,
-    /<img[^>]+src=["']([^"']+)["'][^>]+id=["']landingImage["']/i,
+    /<meta[^>]+property=["']og:image["'][^>]+content=(?:"([^"]+)"|'([^']+)')/i,
+    /<meta[^>]+content=(?:"([^"]+)"|'([^']+)')[^>]+property=["']og:image["']/i,
+    /<img[^>]+id=["']landingImage["'][^>]+src=(?:"([^"]+)"|'([^']+)')/i,
+    /<img[^>]+src=(?:"([^"]+)"|'([^']+)')[^>]+id=["']landingImage["']/i,
   );
 
   const description = pick(
-    /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i,
-    /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i,
+    /<meta[^>]+property=["']og:description["'][^>]+content=(?:"([^"]+)"|'([^']+)')/i,
+    /<meta[^>]+content=(?:"([^"]+)"|'([^']+)')[^>]+property=["']og:description["']/i,
+    /<meta[^>]+name=["']description["'][^>]+content=(?:"([^"]+)"|'([^']+)')/i,
+    /<meta[^>]+content=(?:"([^"]+)"|'([^']+)')[^>]+name=["']description["']/i,
   );
 
   return {
