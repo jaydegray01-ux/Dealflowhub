@@ -5,6 +5,7 @@ import {
   extractAmazonAsin,
   canonicalAmazonUrl,
   affiliateAmazonUrl,
+  parseAmazonProductHtml,
 } from './amazonImport.js';
 import { createAmazonImportHandler } from '../api/import/amazon.js';
 
@@ -39,6 +40,17 @@ test('canonicalAmazonUrl + affiliateAmazonUrl produce expected URLs', () => {
     affiliateAmazonUrl(canonical, 'mytag-20'),
     'https://www.amazon.com/dp/B08N5WRWNW?tag=mytag-20',
   );
+});
+
+test('parseAmazonProductHtml handles apostrophes in double-quoted meta content', () => {
+  const html = `<html><head>
+    <meta property="og:title" content="Kid's Toy - Fun &amp; Games" />
+    <meta property="og:image" content="https://images.example.com/toy.jpg" />
+    <meta property="og:description" content="Best children's toy on the market" />
+  </head></html>`;
+  const result = parseAmazonProductHtml(html);
+  assert.equal(result.title, "Kid's Toy - Fun & Games");
+  assert.equal(result.description, "Best children's toy on the market");
 });
 
 test('amazon import API parses mocked HTML and returns autofill payload', async () => {
