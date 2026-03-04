@@ -9,7 +9,3 @@ ALTER TABLE deals
 CREATE UNIQUE INDEX IF NOT EXISTS deals_canonical_url_unique_idx
   ON deals (canonical_url)
   WHERE canonical_url IS NOT NULL;
-
-CREATE UNIQUE INDEX IF NOT EXISTS deals_asin_unique_idx
-  ON deals (asin)
-  WHERE asin IS NOT NULL;
