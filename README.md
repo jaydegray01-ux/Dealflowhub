@@ -1,6 +1,44 @@
 # Dealflowhub
 
 
+
+## DealFlowHub DealBot (Telegram Webhook)
+
+> **Security note:** if your Telegram bot token was ever exposed publicly, revoke it in **@BotFather** (`/revoke`) and generate a new token **before deploying**. Never commit tokens to git.
+
+### Required environment variables
+
+Add these values in `.env` locally and in your deployment environment:
+
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_WEBHOOK_SECRET_TOKEN`
+- `PUBLIC_BASE_URL`
+- `AMAZON_ASSOC_TAG`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_STORAGE_BUCKET`
+- `OPENAI_API_KEY`
+
+### Database migration
+
+Run `supabase/migrations/011_dealbot_fields.sql` after the existing migrations to add DealBot columns and dedupe indexes (`canonical_url`, `affiliate_url`, source message fields, screenshot URL).
+
+### Deploy + register webhook
+
+1. Deploy the app so `${PUBLIC_BASE_URL}/api/telegram/webhook` is reachable over HTTPS.
+2. Register the webhook:
+
+```bash
+npm run dealbot:webhook:set
+```
+
+This script calls Telegram `setWebhook` with `secret_token=TELEGRAM_WEBHOOK_SECRET_TOKEN`. The webhook validates the incoming `X-Telegram-Bot-Api-Secret-Token` header and rejects requests without the correct value.
+
+### Usage
+
+1. Send an Amazon URL to the bot. It creates a draft deal (deduped by `asin` / `canonical_url`), uploads the product image to Supabase Storage, and replies with title, affiliate URL, and category.
+2. Send a screenshot (or reply with one). DealBot uploads it to storage, extracts prices with OpenAI Vision structured output, auto-features when rules match, and auto-publishes when confidence is high.
+
 ## Local Validation
 
 Run these commands before committing parser changes:
