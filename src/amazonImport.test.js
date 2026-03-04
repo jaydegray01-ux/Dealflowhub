@@ -5,6 +5,7 @@ import {
   extractAmazonAsin,
   canonicalAmazonUrl,
   affiliateAmazonUrl,
+  parseAmazonProductHtml,
 } from './amazonImport.js';
 import { createAmazonImportHandler } from '../api/import/amazon.js';
 
@@ -30,6 +31,10 @@ test('extractAmazonAsin handles common Amazon URL formats', () => {
   assert.equal(extractAmazonAsin('https://www.amazon.com/Some-Name/dp/b08n5wrwnw/'), 'B08N5WRWNW');
   assert.equal(extractAmazonAsin('https://www.amazon.com/s?k=headphones&asin=B08N5WRWNW'), 'B08N5WRWNW');
   assert.equal(extractAmazonAsin('https://example.com/dp/B08N5WRWNW'), null);
+  assert.equal(extractAmazonAsin('https://www.amazon.co.uk/dp/B08N5WRWNW'), 'B08N5WRWNW');
+  assert.equal(extractAmazonAsin('https://www.amazon.de/dp/B08N5WRWNW'), 'B08N5WRWNW');
+  assert.equal(extractAmazonAsin('https://amazon.com.evil.com/dp/B08N5WRWNW'), null);
+  assert.equal(extractAmazonAsin('https://www.amazon.com.evil.com/dp/B08N5WRWNW'), null);
 });
 
 test('canonicalAmazonUrl + affiliateAmazonUrl produce expected URLs', () => {
@@ -38,6 +43,32 @@ test('canonicalAmazonUrl + affiliateAmazonUrl produce expected URLs', () => {
   assert.equal(
     affiliateAmazonUrl(canonical, 'mytag-20'),
     'https://www.amazon.com/dp/B08N5WRWNW?tag=mytag-20',
+  );
+});
+
+test('canonicalAmazonUrl preserves non-US Amazon marketplace TLD', () => {
+  assert.equal(
+    canonicalAmazonUrl('B08N5WRWNW', 'www.amazon.co.uk'),
+    'https://www.amazon.co.uk/dp/B08N5WRWNW',
+  );
+  assert.equal(
+    canonicalAmazonUrl('B08N5WRWNW', 'www.amazon.de'),
+    'https://www.amazon.de/dp/B08N5WRWNW',
+  );
+  assert.equal(
+    canonicalAmazonUrl('B08N5WRWNW', 'smile.amazon.co.jp'),
+    'https://www.amazon.co.jp/dp/B08N5WRWNW',
+  );
+});
+
+test('canonicalAmazonUrl rejects non-Amazon hosts that contain amazon.com', () => {
+  assert.equal(
+    canonicalAmazonUrl('B08N5WRWNW', 'amazon.com.evil.com'),
+    'https://www.amazon.com/dp/B08N5WRWNW',
+  );
+  assert.equal(
+    canonicalAmazonUrl('B08N5WRWNW', 'www.amazon.com.evil.com'),
+    'https://www.amazon.com/dp/B08N5WRWNW',
   );
 });
 

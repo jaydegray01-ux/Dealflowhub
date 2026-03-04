@@ -1,4 +1,4 @@
-const AMAZON_HOST_RE = /(^|\.)amazon\.[a-z.]+$/i;
+const AMAZON_HOST_RE = /^(?:[a-z0-9-]+\.)?amazon\.[a-z]{2,3}(?:\.[a-z]{2})?$/i;
 
 const decodeEntities = (value = '') => value
   .replace(/&amp;/g, '&')
@@ -39,9 +39,11 @@ export function extractAmazonAsin(rawUrl = '') {
   return null;
 }
 
-export function canonicalAmazonUrl(asin) {
+export function canonicalAmazonUrl(asin, host = 'www.amazon.com') {
   if (!asin || !/^[A-Z0-9]{10}$/i.test(asin)) return null;
-  return `https://www.amazon.com/dp/${asin.toUpperCase()}`;
+  const tldMatch = String(host).match(/^(?:[a-z0-9-]+\.)?amazon\.([a-z]{2,3}(?:\.[a-z]{2})?)$/i);
+  const tld = tldMatch ? tldMatch[1] : 'com';
+  return `https://www.amazon.${tld}/dp/${asin.toUpperCase()}`;
 }
 
 export function affiliateAmazonUrl(canonicalUrl, assocTag = '') {
@@ -57,30 +59,31 @@ export function parseAmazonProductHtml(html = '') {
   const pick = (...patterns) => {
     for (const pattern of patterns) {
       const match = safeHtml.match(pattern);
-      if (match?.[1]) return decodeEntities(match[1].trim());
+      const value = match?.[1] ?? match?.[2];
+      if (value) return decodeEntities(value.trim());
     }
     return '';
   };
 
   const title = pick(
-    /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i,
+    /<meta[^>]+property=["']og:title["'][^>]+content=(?:"([^"]+)"|'([^']+)')/i,
+    /<meta[^>]+content=(?:"([^"]+)"|'([^']+)')[^>]+property=["']og:title["']/i,
     /<span[^>]+id=["']productTitle["'][^>]*>([\s\S]*?)<\/span>/i,
     /<title>([^<]+)<\/title>/i,
   ).replace(/\s+/g, ' ').trim();
 
   const imageUrl = pick(
-    /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
-    /<img[^>]+id=["']landingImage["'][^>]+src=["']([^"']+)["']/i,
-    /<img[^>]+src=["']([^"']+)["'][^>]+id=["']landingImage["']/i,
+    /<meta[^>]+property=["']og:image["'][^>]+content=(?:"([^"]+)"|'([^']+)')/i,
+    /<meta[^>]+content=(?:"([^"]+)"|'([^']+)')[^>]+property=["']og:image["']/i,
+    /<img[^>]+id=["']landingImage["'][^>]+src=(?:"([^"]+)"|'([^']+)')/i,
+    /<img[^>]+src=(?:"([^"]+)"|'([^']+)')[^>]+id=["']landingImage["']/i,
   );
 
   const description = pick(
-    /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i,
-    /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i,
+    /<meta[^>]+property=["']og:description["'][^>]+content=(?:"([^"]+)"|'([^']+)')/i,
+    /<meta[^>]+content=(?:"([^"]+)"|'([^']+)')[^>]+property=["']og:description["']/i,
+    /<meta[^>]+name=["']description["'][^>]+content=(?:"([^"]+)"|'([^']+)')/i,
+    /<meta[^>]+content=(?:"([^"]+)"|'([^']+)')[^>]+name=["']description["']/i,
   );
 
   return {
@@ -98,7 +101,8 @@ export async function importAmazonFromUrl({ url, assocTag, fetchImpl = fetch }) 
   const asin = extractAmazonAsin(url);
   if (!asin) throw new Error('Could not extract a valid ASIN from that Amazon URL.');
 
-  const canonicalUrl = canonicalAmazonUrl(asin);
+  const parsedUrl = new URL(url);
+  const canonicalUrl = canonicalAmazonUrl(asin, parsedUrl.hostname);
   const affiliateUrl = affiliateAmazonUrl(canonicalUrl, assocTag);
 
   const response = await fetchImpl(canonicalUrl, {
