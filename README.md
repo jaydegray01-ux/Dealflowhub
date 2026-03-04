@@ -1,5 +1,20 @@
 # Dealflowhub
 
+
+## Local Validation
+
+Run these commands before committing parser changes:
+
+```bash
+npm run test
+npm run check:parser
+```
+
+- `npm run test` executes the Node test suite in `src/parser.test.js`.
+- `npm run check:parser` runs the lightweight smoke checks in `src/parser.check.js`.
+
+---
+
 ## Complete Setup Guide
 
 Follow these steps **in order** the first time you set up the project.
@@ -26,6 +41,7 @@ cp .env.example .env
 |---|---|
 | `VITE_SUPABASE_URL` | Supabase Dashboard → **Settings → API** → Project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase Dashboard → **Settings → API** → `anon` public key |
+| `AMAZON_ASSOC_TAG` | Amazon Associates tracking tag used by `/api/import/amazon` (example: `yourtag-20`) |
 
 If you are deploying to **Vercel**, add both variables in **Vercel → Project → Settings → Environment Variables** instead of a `.env` file.
 
@@ -46,6 +62,8 @@ Open the **SQL Editor** in your Supabase Dashboard (**SQL Editor → New query**
 | 6 | `supabase/migrations/006_security_fixes.sql` | Adds the `is_admin()` helper function, enables RLS on `categories`, fixes recursive admin policies, and adds the `increment_deal_clicks` RPC. |
 | 7 | `supabase/migrations/007_performance_fixes.sql` | Optimises the `is_admin()` function and merges duplicate permissive SELECT policies on `profiles`, `deals`, `referrals`, and `raffle_entries`. |
 | 8 | `supabase/migrations/008_add_email_to_profiles.sql` | Adds the `email` column to `profiles` (if missing) and backfills it from `auth.users`. **Required for the Admin Dashboard to look up users by email.** |
+| 9 | `supabase/migrations/009_add_stackable_fields.sql` | Adds stackable metadata fields (`is_stackable`, `stack_options`) to `deals`. |
+| 10 | `supabase/migrations/010_add_deal_asin.sql` | Adds `asin` to `deals` plus indexes for Amazon import dedupe. |
 
 > **Tip:** Every migration is safe to re-run — `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, and `DROP POLICY IF EXISTS` guards prevent duplicate-object errors.
 
