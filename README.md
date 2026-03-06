@@ -791,3 +791,8 @@ This means one or more migrations have not been applied to your Supabase project
 ## Telegram batch bot
 
 See `docs/telegram-batch-listings.md` for setup and usage of batch listing import via Telegram webhook.
+
+Quick checks:
+- Route path on Vercel: `POST /api/telegram/webhook`
+- Function file path: `api/telegram/webhook.js`
+- Required env vars: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
