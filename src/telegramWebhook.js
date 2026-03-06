@@ -70,8 +70,7 @@ export function createTelegramWebhookHandler({
     }
 
     const headerSecret = req.headers['x-telegram-bot-api-secret-token'];
-    const querySecret = req.query?.secret;
-    if (headerSecret !== webhookSecret && querySecret !== webhookSecret) {
+    if (headerSecret !== webhookSecret) {
       res.status(401).json({ error: 'Unauthorized webhook secret.' });
       return;
     }
