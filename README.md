@@ -787,3 +787,7 @@ This means one or more migrations have not been applied to your Supabase project
 | Configure Auth redirect URLs | ✅ Yes | See `docs/supabase-auth.md` |
 | New users getting a profile row | 🤖 Automatic | The trigger in `000_profiles_table.sql` handles this |
 | Save & Earn seed data | 🤖 Automatic | Inserted by `005_methods_table.sql` if the table is empty |
+
+## Telegram batch bot
+
+See `docs/telegram-batch-listings.md` for setup and usage of batch listing import via Telegram webhook.
