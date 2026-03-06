@@ -31,15 +31,20 @@ function getChatId(update = {}) {
 async function sendTelegramMessage({ fetchImpl, botToken, chatId, text }) {
   if (!chatId || !text) return;
 
-  await fetchImpl(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      disable_web_page_preview: true,
-    }),
-  });
+  try {
+    await fetchImpl(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        disable_web_page_preview: true,
+      }),
+    });
+  } catch (error) {
+    // Log and swallow the error so the HTTP handler can still return 200 to Telegram
+    console.error('Failed to send Telegram message:', error);
+  }
 }
 
 export function createTelegramWebhookHandler({
