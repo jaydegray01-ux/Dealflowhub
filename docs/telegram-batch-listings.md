@@ -17,6 +17,14 @@ In your Vercel project → **Settings → Environment Variables**, add:
 
 Push this branch to GitHub and deploy.
 
+## 2.5) Verify route location in this repo
+
+The production Telegram webhook route is implemented at:
+
+- `api/telegram/webhook.js` → serves `POST /api/telegram/webhook` on Vercel
+
+The webhook function imports business logic from `src/telegramWebhook.js`.
+
 ## 3) Set Telegram webhook
 
 After deploy, set webhook with your production URL:
