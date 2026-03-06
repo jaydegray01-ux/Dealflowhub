@@ -1,20 +1,6 @@
-export const CATEGORIES = [
-  { id: 'electronics', label: 'Electronics' },
-  { id: 'home-and-kitchen', label: 'Home & Kitchen' },
-  { id: 'clothing', label: 'Clothing' },
-  { id: 'beauty-and-personal-care', label: 'Beauty & Personal Care' },
-  { id: 'health-and-household', label: 'Health & Wellness' },
-  { id: 'tools-and-home-improvement', label: 'Tools & Home Improvement' },
-  { id: 'baby', label: 'Baby & Kids' },
-  { id: 'toys-and-games', label: 'Toys & Games' },
-  { id: 'sports-and-outdoors', label: 'Sports & Outdoors' },
-  { id: 'automotive', label: 'Automotive' },
-  { id: 'pet-supplies', label: 'Pet Supplies' },
-  { id: 'arts-and-crafts', label: 'Arts, Crafts & DIY' },
-  { id: 'other', label: 'Other' },
-  { id: 'adult-products', label: 'Adult Products' },
-];
+import { CATS } from './styles';
 
+export const CATEGORIES = CATS.map(({ id, label }) => ({ id, label }));
 export function buildDealFromParsed(parsed = {}) {
   const dealType = ['SALE', 'PROMO', 'BOTH', 'STACKABLE'].includes(parsed.dealType)
     ? parsed.dealType
