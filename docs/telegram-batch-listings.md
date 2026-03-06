@@ -25,7 +25,7 @@ After deploy, set webhook with your production URL:
 curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://<your-vercel-domain>/api/telegram/webhook?secret=<TELEGRAM_WEBHOOK_SECRET>",
+    "url": "https://<your-vercel-domain>/api/telegram/webhook",
     "secret_token": "<TELEGRAM_WEBHOOK_SECRET>"
   }'
 ```
