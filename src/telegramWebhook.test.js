@@ -138,5 +138,9 @@ test('telegram handler rejects batches over max listing limit', async () => {
   assert.equal(res.body.failed, 0);
   assert.equal(inserts.length, 0);
   assert.equal(fetchCalls.length, 1);
-  assert.match(fetchCalls[0].options.body, /Maximum 25 listings per message\. You sent 26 listings\./);
+  const maxListings = _internal.MAX_LISTINGS_PER_BATCH;
+  const expectedMessageRegex = new RegExp(
+    `Maximum ${maxListings} listings per message\\. You sent ${maxListings + 1} listings\\.`
+  );
+  assert.match(fetchCalls[0].options.body, expectedMessageRegex);
 });
