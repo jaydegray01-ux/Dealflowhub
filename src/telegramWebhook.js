@@ -7,6 +7,8 @@ import {
   validateDealForCreate,
 } from './listingCreation.js';
 
+const MAX_LISTINGS_PER_BATCH = 25;
+
 function splitListingBlocks(raw = '') {
   return String(raw)
     .split(/\n\s*===+\s*\n/g)
@@ -145,6 +147,25 @@ export function createTelegramWebhookHandler({
       return;
     }
 
+    if (blocks.length > MAX_LISTINGS_PER_BATCH) {
+      const replyResult = await sendTelegramMessage({
+        fetchImpl,
+        botToken,
+        chatId,
+        text: `❌ Maximum ${MAX_LISTINGS_PER_BATCH} listings per message. You sent ${blocks.length} listings.`,
+      });
+      console.log('[telegram webhook] Telegram reply result', replyResult);
+      res.status(200).json({
+        ok: true,
+        processed: 0,
+        created: 0,
+        failed: 0,
+        ignored: true,
+        reason: 'max_listings_exceeded',
+      });
+      return;
+    }
+
     const supabase = createSupabaseClient(supabaseUrl, serviceRoleKey);
 
     const results = [];
@@ -224,5 +245,6 @@ export function createTelegramWebhookHandler({
 }
 
 export const _internal = {
+  MAX_LISTINGS_PER_BATCH,
   splitListingBlocks,
 };
