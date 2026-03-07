@@ -42,6 +42,35 @@ input:focus,select:focus,textarea:focus{border-color:var(--p)}
 .nav-logo{font-size:20px;font-weight:700;color:var(--p);flex:1}
 .page{max-width:1100px;margin:0 auto;padding:24px 16px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.listings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.listings-grid > * {
+  min-width: 0;
+}
+
+.listings-grid img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+@media (max-width: 900px) {
+  .listings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .listings-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .deal-card{background:var(--surf);border:1.5px solid var(--bdr);border-radius:var(--rad);overflow:hidden;transition:all .2s;cursor:pointer}
 .deal-card:hover{border-color:var(--p);box-shadow:var(--sh);transform:translateY(-2px)}
 .deal-img{width:100%;height:160px;background:var(--surf2);overflow:hidden;position:relative}
@@ -1098,7 +1127,7 @@ function DealsPage(){
               <p style={{marginTop:12}}>No deals found. Try adjusting your filters.</p>
             </div>
           ):(
-            <div className="grid2">
+            <div className="grid2 listings-grid">
               {deals.map(d=><DealCard key={d.id} deal={d}/>)}
             </div>
           )}
