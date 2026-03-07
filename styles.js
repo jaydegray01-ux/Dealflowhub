@@ -102,10 +102,18 @@ const now = new Date(); // used only for ad() and sd() seed data helpers
 const ad = (days) => { const d=new Date(now); d.setDate(d.getDate()+days); return d.toISOString(); };
 const sd = (days) => { const d=new Date(now); d.setDate(d.getDate()-days); return d.toISOString(); };
 
+const isDealExpired = (expireDate) => {
+  if (!expireDate) return false;
+  const expiration = new Date(expireDate);
+  if (Number.isNaN(expiration.getTime())) return false;
+  return new Date() > expiration;
+};
+
 // Bug 2 fixed: tu() now computes current time fresh on every call
 const tu = (d)=>{
+  if (!d) return "No expiration";
+  if (isDealExpired(d)) return "Expired";
   const diff = new Date(d) - new Date(); // always current time
-  if(diff<0) return "Expired";
   const days=Math.floor(diff/864e5), hrs=Math.floor((diff%864e5)/36e5);
   return days>0?`${days}d ${hrs}h left`:`${hrs}h left`;
 };
@@ -121,7 +129,12 @@ const timeSince = (d) => {
   return `Added ${days} day${days===1?"":"s"} ago`;
 };
 
-const fmtDate = (s) => new Date(s).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+const fmtDate = (s) => {
+  if (!s) return "No expiration";
+  const parsed = new Date(s);
+  if (Number.isNaN(parsed.getTime())) return "No expiration";
+  return parsed.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+};
 export const PRIZE_AMOUNT_USD = 10;
 
 // ── Seed data ────────────────────────────────────────────────
