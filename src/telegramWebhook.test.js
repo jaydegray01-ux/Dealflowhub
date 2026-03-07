@@ -83,3 +83,60 @@ test('telegram handler processes multiple listings and reports failures', async 
   assert.equal(fetchCalls.length, 1);
   assert.match(fetchCalls[0].options.body, /Batch processed: 3/);
 });
+
+
+test('telegram handler rejects batches over max listing limit', async () => {
+  process.env.TELEGRAM_BOT_TOKEN = 'token';
+  process.env.TELEGRAM_WEBHOOK_SECRET = 'secret';
+  process.env.SUPABASE_URL = 'https://supabase.example';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+  const inserts = [];
+  const fetchCalls = [];
+
+  const handler = createTelegramWebhookHandler({
+    fetchImpl: async (url, options) => {
+      fetchCalls.push({ url, options });
+      return { ok: true, json: async () => ({ ok: true }) };
+    },
+    createSupabaseClient: () => ({
+      from() {
+        return {
+          insert(payload) {
+            inserts.push(payload[0]);
+            return { error: null };
+          },
+        };
+      },
+    }),
+  });
+
+  const listings = Array.from({ length: _internal.MAX_LISTINGS_PER_BATCH + 1 }, (_, index) => [
+    `Title: Listing ${index + 1}`,
+    'Deal Type: SALE',
+    `Product URL: https://example.com/${index + 1}`,
+  ].join('\n')).join('\n===\n');
+
+  const req = {
+    method: 'POST',
+    headers: { 'x-telegram-bot-api-secret-token': 'secret' },
+    body: {
+      message: {
+        chat: { id: 12345 },
+        text: listings,
+      },
+    },
+    query: {},
+  };
+
+  const res = makeRes();
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.processed, 0);
+  assert.equal(res.body.created, 0);
+  assert.equal(res.body.failed, 0);
+  assert.equal(inserts.length, 0);
+  assert.equal(fetchCalls.length, 1);
+  assert.match(fetchCalls[0].options.body, /Maximum 25 listings per message\. You sent 26 listings\./);
+});
