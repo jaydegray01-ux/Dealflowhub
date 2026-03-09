@@ -2948,6 +2948,26 @@ function VercelAnalytics(){
   return AnalyticsComponent ? <AnalyticsComponent /> : null;
 }
 
+function VercelSpeedInsights(){
+  const [SpeedInsightsComponent, setSpeedInsightsComponent] = useState(null);
+
+  useEffect(()=>{
+    let active = true;
+
+    import('@vercel/speed-insights/react')
+      .then(({ SpeedInsights })=>{
+        if (active && SpeedInsights) {
+          setSpeedInsightsComponent(() => SpeedInsights);
+        }
+      })
+      .catch(()=>{});
+
+    return ()=>{ active = false; };
+  },[]);
+
+  return SpeedInsightsComponent ? <SpeedInsightsComponent /> : null;
+}
+
 // ── Mount ─────────────────────────────────────────────────────
 const root=ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -2957,6 +2977,7 @@ root.render(
         <AgeProvider>
           <App/>
           <VercelAnalytics/>
+          <VercelSpeedInsights/>
         </AgeProvider>
       </AuthProvider>
     </ToastProvider>
