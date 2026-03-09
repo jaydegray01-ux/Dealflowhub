@@ -2927,6 +2927,27 @@ function App(){
   );
 }
 
+
+function VercelAnalytics(){
+  const [AnalyticsComponent, setAnalyticsComponent] = useState(null);
+
+  useEffect(()=>{
+    let active = true;
+
+    import('@vercel/analytics')
+      .then(({ Analytics })=>{
+        if (active && Analytics) {
+          setAnalyticsComponent(() => Analytics);
+        }
+      })
+      .catch(()=>{});
+
+    return ()=>{ active = false; };
+  },[]);
+
+  return AnalyticsComponent ? <AnalyticsComponent /> : null;
+}
+
 // ── Mount ─────────────────────────────────────────────────────
 const root=ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -2935,6 +2956,7 @@ root.render(
       <AuthProvider>
         <AgeProvider>
           <App/>
+          <VercelAnalytics/>
         </AgeProvider>
       </AuthProvider>
     </ToastProvider>
