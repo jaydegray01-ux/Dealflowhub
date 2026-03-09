@@ -2933,9 +2933,8 @@ function VercelAnalytics(){
 
   useEffect(()=>{
     let active = true;
-    const pkg = '@vercel/analytics';
 
-    import(pkg)
+    import('@vercel/analytics')
       .then(({ Analytics })=>{
         if (active && Analytics) {
           setAnalyticsComponent(() => Analytics);
