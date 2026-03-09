@@ -2929,20 +2929,24 @@ function App(){
 
 
 function VercelAnalytics(){
+  const [AnalyticsComponent, setAnalyticsComponent] = useState(null);
+
   useEffect(()=>{
     let active = true;
     const pkg = '@vercel/analytics';
 
     import(pkg)
-      .then(({ inject })=>{
-        if (active && typeof inject === 'function') inject();
+      .then(({ Analytics })=>{
+        if (active && Analytics) {
+          setAnalyticsComponent(() => Analytics);
+        }
       })
       .catch(()=>{});
 
     return ()=>{ active = false; };
   },[]);
 
-  return null;
+  return AnalyticsComponent ? <AnalyticsComponent /> : null;
 }
 
 // ── Mount ─────────────────────────────────────────────────────
