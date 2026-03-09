@@ -2927,6 +2927,24 @@ function App(){
   );
 }
 
+
+function VercelAnalytics(){
+  useEffect(()=>{
+    let active = true;
+    const pkg = '@vercel/analytics';
+
+    import(pkg)
+      .then(({ inject })=>{
+        if (active && typeof inject === 'function') inject();
+      })
+      .catch(()=>{});
+
+    return ()=>{ active = false; };
+  },[]);
+
+  return null;
+}
+
 // ── Mount ─────────────────────────────────────────────────────
 const root=ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -2935,6 +2953,7 @@ root.render(
       <AuthProvider>
         <AgeProvider>
           <App/>
+          <VercelAnalytics/>
         </AgeProvider>
       </AuthProvider>
     </ToastProvider>
