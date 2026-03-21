@@ -1,0 +1,1 @@
+module.exports = { siteUrl: 'https://dealflowhub.xyz', generateRobotsTxt: true, }
